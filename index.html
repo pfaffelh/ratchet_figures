@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Muller's ratchet — first-loss times</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+<script src="data.js"></script>
+<style>
+  :root { --gap: 14px; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 18px/1.45 system-ui, sans-serif; color: #1a1a1a; }
+  header { padding: 14px 22px; border-bottom: 1px solid #e3e3e3; }
+  header h1 { margin: 0 0 3px; font-size: 26px; }
+  header p { margin: 0; color: #555; font-size: 16px; }
+  .wrap { display: flex; gap: var(--gap); align-items: flex-start; padding: var(--gap); }
+  .panel { flex: 0 0 330px; display: flex; flex-direction: column; gap: var(--gap); }
+  fieldset { border: 1px solid #d9d9d9; border-radius: 8px; margin: 0; padding: 12px 14px; }
+  legend { font-weight: 600; font-size: 16px; color: #333; padding: 0 4px; }
+  label.row { display: block; margin: 5px 0; }
+  select { width: 100%; padding: 8px; font-size: 18px; border-radius: 6px; border: 1px solid #c9c9c9; }
+  .psi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+  .checks label { display: block; margin: 6px 0; }
+  input[type="checkbox"] { width: 18px; height: 18px; vertical-align: middle; accent-color: #1f77b4; }
+  #plot { flex: 1 1 auto; min-width: 0; height: 82vh; }
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  small.note { color: #666; font-size: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Muller's ratchet — first-loss time t<sub>0</sub></h1>
+  <p>Each point is one (ψ, δ) parameter set (N = 10000). Simulated y-values are computed
+     <b>per path, then averaged</b> (mean ± SD over paths with finite t<sub>0</sub> &gt; 0).
+     Dashed lines are theory curves (no averaging). Hover a point for ψ, δ, α, λ, θ.</p>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <fieldset>
+      <legend>x-axis</legend>
+      <select id="xsel"></select>
+      <label class="row" style="margin-top:8px"><input type="checkbox" id="xlog" /> log scale</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>y-axis</legend>
+      <select id="ysel"></select>
+      <label class="row" style="margin-top:8px"><input type="checkbox" id="ylog" /> log scale</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>fixed: ψ (show curves)</legend>
+      <div class="psi-grid checks" id="psiboxes"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>display</legend>
+      <label class="row"><input type="checkbox" id="errbars" checked /> error bars (± SD)</label>
+      <label class="row"><input type="checkbox" id="theory" checked /> theory curve: t₀ = log θ/α</label>
+    </fieldset>
+
+    <small class="note">Tip: re-run <code>build_data.py</code> after changing the CSVs.</small>
+  </div>
+
+  <div id="plot"></div>
+</div>
+
+<script>
+const PALETTE = ["#1f77b4","#d62728","#2ca02c","#9467bd","#ff7f0e","#17becf","#8c564b","#e377c2"];
+
+// x-axis choices: parameter-space quantities (constant within a (psi,delta) set)
+const X_OPTIONS = {
+  "delta":   { label: "δ",        val: p => p.delta,                 log: false },
+  "alpha":   { label: "α",        val: p => p.alpha,                 log: true  },
+  "lambda":  { label: "λ",        val: p => p.lambda,                log: true  },
+  "N_alpha": { label: "N·α",      val: p => p.N * p.alpha,           log: true  },
+  "N_lambda":{ label: "N·λ",      val: p => p.N * p.lambda,          log: true  },
+  "N_emtheta":{label: "N·e^(−θ)", val: p => p.N * Math.exp(-p.theta), log: true },
+};
+
+// y-axis choices: transform-then-average; all are scalar multiples of
+// mean(t_0) or mean(1/t_0), with SD scaled by the same |factor|.
+// theory baseline: t0 = log(theta)/alpha, transformed the same way as the data
+const Y_OPTIONS = {
+  "t0":        { label: "t₀",           mean: p => p.mean_t0,               err: p => p.std_t0,               theory: p => Math.log(p.theta) / p.alpha, log: true  },
+  "inv_t0":    { label: "1/t₀",         mean: p => p.mean_inv_t0,           err: p => p.std_inv_t0,           theory: p => p.alpha / Math.log(p.theta), log: true  },
+  "a_t0":      { label: "α·t₀",         mean: p => p.alpha * p.mean_t0,     err: p => p.alpha * p.std_t0,     theory: p => Math.log(p.theta),           log: true  },
+  "inv_a_t0":  { label: "1/(α·t₀)",     mean: p => p.mean_inv_t0 / p.alpha, err: p => p.std_inv_t0 / p.alpha, theory: p => 1 / Math.log(p.theta),       log: true  },
+  "logth_t0a": { label: "log θ/(t₀·α)", mean: p => (Math.log(p.theta) / p.alpha) * p.mean_inv_t0,
+                                         err:  p => Math.abs(Math.log(p.theta) / p.alpha) * p.std_inv_t0,
+                                         theory: p => 1,                                                       log: false },
+};
+
+const $ = id => document.getElementById(id);
+
+function fillSelect(sel, options) {
+  for (const [key, o] of Object.entries(options)) {
+    const opt = document.createElement("option");
+    opt.value = key; opt.textContent = o.label; sel.appendChild(opt);
+  }
+}
+
+const psiColor = {};
+RATCHET_DATA.psi_values.forEach((psi, i) => { psiColor[psi] = PALETTE[i % PALETTE.length]; });
+
+function buildPsiBoxes() {
+  const box = $("psiboxes");
+  RATCHET_DATA.psi_values.forEach(psi => {
+    const lab = document.createElement("label");
+    lab.innerHTML =
+      `<input type="checkbox" class="psibox" value="${psi}" checked /> ` +
+      `<span class="swatch" style="background:${psiColor[psi]}"></span>ψ=${psi}`;
+    box.appendChild(lab);
+  });
+}
+
+function selectedPsi() {
+  return [...document.querySelectorAll(".psibox:checked")].map(c => parseFloat(c.value));
+}
+
+function render() {
+  const X = X_OPTIONS[$("xsel").value];
+  const Y = Y_OPTIONS[$("ysel").value];
+  const showErr = $("errbars").checked;
+  const psis = selectedPsi();
+
+  const dataTraces = psis.map(psi => {
+    const pts = RATCHET_DATA.points
+      .filter(p => p.psi === psi && p.n_used > 0)
+      .map(p => ({ x: X.val(p), y: Y.mean(p), e: Y.err(p), p }))
+      .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y))
+      .sort((a, b) => a.x - b.x);
+    return {
+      type: "scatter",
+      mode: "lines+markers",
+      name: "ψ=" + psi,
+      x: pts.map(d => d.x),
+      y: pts.map(d => d.y),
+      error_y: { type: "data", array: pts.map(d => d.e), visible: showErr, thickness: 1.5, width: 5 },
+      marker: { size: 11, color: psiColor[psi] },
+      line: { color: psiColor[psi], width: 2.5 },
+      customdata: pts.map(d => [
+        d.p.psi, d.p.delta, d.p.alpha, d.p.lambda, d.p.theta, d.e,
+      ]),
+      hovertemplate:
+        "ψ=%{customdata[0]:.2f} · δ=%{customdata[1]:.2f}<br>" +
+        "<b>y = %{y:.4g} ± %{customdata[5]:.3g}</b><br>" +
+        "α=%{customdata[2]:.3g} · λ=%{customdata[3]:.3g} · θ=%{customdata[4]:.3g}" +
+        "<extra></extra>",
+    };
+  });
+
+  const theoryTraces = $("theory").checked ? psis.map(psi => {
+    const tp = RATCHET_DATA.points
+      .filter(p => p.psi === psi)
+      .map(p => ({ x: X.val(p), y: Y.theory(p), p }))
+      .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y))
+      .sort((a, b) => a.x - b.x);
+    return {
+      type: "scatter",
+      mode: "lines",
+      name: "ψ=" + psi + " (theory)",
+      x: tp.map(d => d.x),
+      y: tp.map(d => d.y),
+      line: { color: psiColor[psi], width: 2, dash: "dash" },
+      showlegend: false,
+      customdata: tp.map(d => [d.p.psi, d.p.delta]),
+      hovertemplate:
+        "theory · ψ=%{customdata[0]:.2f} · δ=%{customdata[1]:.2f}<br>" +
+        "y = %{y:.4g}<extra></extra>",
+    };
+  }) : [];
+
+  const traces = [...theoryTraces, ...dataTraces];
+
+  const layout = {
+    font: { size: 16 },
+    margin: { l: 85, r: 20, t: 10, b: 65 },
+    xaxis: { title: { text: X.label, font: { size: 20 } }, tickfont: { size: 15 }, type: $("xlog").checked ? "log" : "linear", zeroline: false },
+    yaxis: { title: { text: Y.label, font: { size: 20 } }, tickfont: { size: 15 }, type: $("ylog").checked ? "log" : "linear", zeroline: false },
+    legend: { orientation: "h", y: 1.08, font: { size: 16 } },
+    hovermode: "closest",
+    hoverlabel: { font: { size: 15 } },
+  };
+  Plotly.react("plot", traces, layout, { responsive: true, displaylogo: false });
+}
+
+// ---- init ----
+fillSelect($("xsel"), X_OPTIONS);
+fillSelect($("ysel"), Y_OPTIONS);
+buildPsiBoxes();
+
+// sensible default log/linear per chosen axis, also updated on change
+function syncXLog() { $("xlog").checked = X_OPTIONS[$("xsel").value].log; }
+function syncYLog() { $("ylog").checked = Y_OPTIONS[$("ysel").value].log; }
+syncXLog(); syncYLog();
+
+$("xsel").addEventListener("change", () => { syncXLog(); render(); });
+$("ysel").addEventListener("change", () => { syncYLog(); render(); });
+["xlog", "ylog", "errbars", "theory"].forEach(id => $(id).addEventListener("change", render));
+document.querySelectorAll(".psibox").forEach(c => c.addEventListener("change", render));
+
+render();
+</script>
+</body>
+</html>
