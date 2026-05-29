@@ -142,11 +142,13 @@ function render() {
       line: { color: psiColor[psi], width: 2.5 },
       customdata: pts.map(d => [
         d.p.psi, d.p.delta, d.p.alpha, d.p.lambda, d.p.theta, d.e,
+        d.p.N * Math.exp(-d.p.theta),
       ]),
       hovertemplate:
         "ψ=%{customdata[0]:.2f} · δ=%{customdata[1]:.2f}<br>" +
         "<b>y = %{y:.4g} ± %{customdata[5]:.3g}</b><br>" +
-        "α=%{customdata[2]:.3g} · λ=%{customdata[3]:.3g} · θ=%{customdata[4]:.3g}" +
+        "α=%{customdata[2]:.3g} · λ=%{customdata[3]:.3g} · θ=%{customdata[4]:.3g}<br>" +
+        "N·e^(−θ)=%{customdata[6]:.4g}" +
         "<extra></extra>",
     };
   });
@@ -165,10 +167,10 @@ function render() {
       y: tp.map(d => d.y),
       line: { color: psiColor[psi], width: 2, dash: "dash" },
       showlegend: false,
-      customdata: tp.map(d => [d.p.psi, d.p.delta]),
+      customdata: tp.map(d => [d.p.psi, d.p.delta, d.p.N * Math.exp(-d.p.theta)]),
       hovertemplate:
         "theory · ψ=%{customdata[0]:.2f} · δ=%{customdata[1]:.2f}<br>" +
-        "y = %{y:.4g}<extra></extra>",
+        "y = %{y:.4g}<br>N·e^(−θ)=%{customdata[2]:.4g}<extra></extra>",
     };
   }) : [];
 
