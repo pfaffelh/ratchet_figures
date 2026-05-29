@@ -57,7 +57,12 @@
     <fieldset>
       <legend>display</legend>
       <label class="row"><input type="checkbox" id="errbars" checked /> error bars (± SD)</label>
-      <label class="row"><input type="checkbox" id="theory" checked /> theory curve: t₀ = log θ/α</label>
+      <label class="row" style="margin-top:8px">theory curve (dashed):</label>
+      <select id="theory">
+        <option value="off">off</option>
+        <option value="logth_a" selected>t₀ = log θ/α</option>
+        <option value="logth_l">t₀ = log θ/λ</option>
+      </select>
     </fieldset>
 
     <small class="note">Tip: re-run <code>build_data.py</code> after changing the CSVs.</small>
@@ -81,15 +86,25 @@ const X_OPTIONS = {
 
 // y-axis choices: transform-then-average; all are scalar multiples of
 // mean(t_0) or mean(1/t_0), with SD scaled by the same |factor|.
-// theory baseline: t0 = log(theta)/alpha, transformed the same way as the data
+// y-axis: mean/err are transform-then-average over the data; theory(T, p)
+// applies the SAME transform to a deterministic baseline t0 value T.
 const Y_OPTIONS = {
-  "t0":        { label: "t₀",           mean: p => p.mean_t0,               err: p => p.std_t0,               theory: p => Math.log(p.theta) / p.alpha, log: true  },
-  "inv_t0":    { label: "1/t₀",         mean: p => p.mean_inv_t0,           err: p => p.std_inv_t0,           theory: p => p.alpha / Math.log(p.theta), log: true  },
-  "a_t0":      { label: "α·t₀",         mean: p => p.alpha * p.mean_t0,     err: p => p.alpha * p.std_t0,     theory: p => Math.log(p.theta),           log: true  },
-  "inv_a_t0":  { label: "1/(α·t₀)",     mean: p => p.mean_inv_t0 / p.alpha, err: p => p.std_inv_t0 / p.alpha, theory: p => 1 / Math.log(p.theta),       log: true  },
+  "t0":        { label: "t₀",           mean: p => p.mean_t0,               err: p => p.std_t0,               theory: (T, p) => T,                                  log: true  },
+  "inv_t0":    { label: "1/t₀",         mean: p => p.mean_inv_t0,           err: p => p.std_inv_t0,           theory: (T, p) => 1 / T,                              log: true  },
+  "a_t0":      { label: "α·t₀",         mean: p => p.alpha * p.mean_t0,     err: p => p.alpha * p.std_t0,     theory: (T, p) => p.alpha * T,                        log: true  },
+  "inv_a_t0":  { label: "1/(α·t₀)",     mean: p => p.mean_inv_t0 / p.alpha, err: p => p.std_inv_t0 / p.alpha, theory: (T, p) => 1 / (p.alpha * T),                  log: true  },
+  "l_t0":      { label: "λ·t₀",         mean: p => p.lambda * p.mean_t0,    err: p => p.lambda * p.std_t0,    theory: (T, p) => p.lambda * T,                       log: true  },
+  "inv_l_t0":  { label: "1/(λ·t₀)",     mean: p => p.mean_inv_t0 / p.lambda, err: p => p.std_inv_t0 / p.lambda, theory: (T, p) => 1 / (p.lambda * T),               log: true  },
   "logth_t0a": { label: "log θ/(t₀·α)", mean: p => (Math.log(p.theta) / p.alpha) * p.mean_inv_t0,
                                          err:  p => Math.abs(Math.log(p.theta) / p.alpha) * p.std_inv_t0,
-                                         theory: p => 1,                                                       log: false },
+                                         theory: (T, p) => Math.log(p.theta) / (T * p.alpha),                  log: false },
+};
+
+// baselines for the dashed theory curve (deterministic t0 prediction)
+const THEORY_OPTIONS = {
+  "off":     { label: "off" },
+  "logth_a": { label: "log θ/α", base: p => Math.log(p.theta) / p.alpha },
+  "logth_l": { label: "log θ/λ", base: p => Math.log(p.theta) / p.lambda },
 };
 
 const $ = id => document.getElementById(id);
@@ -153,10 +168,11 @@ function render() {
     };
   });
 
-  const theoryTraces = $("theory").checked ? psis.map(psi => {
+  const theoryOpt = THEORY_OPTIONS[$("theory").value];
+  const theoryTraces = (theoryOpt && theoryOpt.base) ? psis.map(psi => {
     const tp = RATCHET_DATA.points
       .filter(p => p.psi === psi)
-      .map(p => ({ x: X.val(p), y: Y.theory(p), p }))
+      .map(p => ({ x: X.val(p), y: Y.theory(theoryOpt.base(p), p), p }))
       .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y))
       .sort((a, b) => a.x - b.x);
     return {
@@ -169,7 +185,7 @@ function render() {
       showlegend: false,
       customdata: tp.map(d => [d.p.psi, d.p.delta, d.p.N * Math.exp(-d.p.theta)]),
       hovertemplate:
-        "theory · ψ=%{customdata[0]:.2f} · δ=%{customdata[1]:.2f}<br>" +
+        "theory (" + theoryOpt.label + ") · ψ=%{customdata[0]:.2f} · δ=%{customdata[1]:.2f}<br>" +
         "y = %{y:.4g}<br>N·e^(−θ)=%{customdata[2]:.4g}<extra></extra>",
     };
   }) : [];
