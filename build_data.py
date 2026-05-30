@@ -43,18 +43,19 @@ def _S_value(y, two_lam):
     return (1.0 - (1.0 - y) ** (1.0 - two_lam)) / (1.0 - two_lam)
 
 
-def _Sm(y, two_lam):
-    """Integrand S(y) * m(y) with m(y) = 2 (1-y)^{2 lam - 1} / y. Limit at 0 is 2."""
+def _Sm(y, two_alpha, m_scale):
+    """Integrand S(y) * m(y), with m(y) = m_scale * (1-y)^{two_alpha - 1} / y.
+    Removable limit at y = 0 is m_scale (since S(y) ~ y there)."""
     if y < 1e-15:
-        return 2.0
-    return _S_value(y, two_lam) * 2.0 * (1.0 - y) ** (two_lam - 1.0) / y
+        return m_scale
+    return _S_value(y, two_alpha) * m_scale * (1.0 - y) ** (two_alpha - 1.0) / y
 
 
-def _I2_integrand(t, inv_two_lam):
-    """Integrand 1/(1 - t^{1/(2 lam)}) of the substituted second integral."""
+def _I2_integrand(t, inv_two_alpha):
+    """Integrand 1/(1 - t^{1/(2 N lam)}) of the substituted second integral."""
     if t <= 0.0:
         return 1.0
-    return 1.0 / (1.0 - t ** inv_two_lam)
+    return 1.0 / (1.0 - t ** inv_two_alpha)
 
 
 def _simpson(f, a, b, n):
@@ -70,25 +71,27 @@ def _simpson(f, a, b, n):
     return s * h / 3.0
 
 
-def t0_neutral_diffusion(lam, x0, n=4000):
-    """Mean hitting time of 0 for dX = -lam X dt + sqrt(X(1-X)) dW, starting at x0.
+def t0_neutral_diffusion(lam, x0, N=1, n=4000):
+    """Mean hitting time of 0 for dX = -lam X dt + sqrt(X(1-X)/N) dW, starting at x0.
 
-    Uses the closed-form
+    Uses the closed-form (see neutral.tex)
         u(x) = int_0^x S(y) m(y) dy + S(x) * int_x^1 m(y) dy,
-    with the substitution t = (1-y)^{2 lam} in the second integral so both
-    integrands are bounded.
+    with S' = (1-x)^{-2 N lam}, m(y) = 2N (1-y)^{2 N lam - 1}/y, and the
+    substitution t = (1-y)^{2 N lam} for the second integral.
     """
-    if lam is None or lam <= 0 or not (0.0 < x0 < 1.0):
+    if lam is None or lam <= 0 or N is None or N <= 0 or not (0.0 < x0 < 1.0):
         return None
-    two_lam = 2.0 * lam
-    I1 = _simpson(lambda y: _Sm(y, two_lam), 0.0, x0, n)
-    T = (1.0 - x0) ** two_lam
+    a = 2.0 * N * lam            # exponent in S and m
+    m_scale = 2.0 * N            # m(y) = m_scale * (1-y)^{a-1}/y
+    I1 = _simpson(lambda y: _Sm(y, a, m_scale), 0.0, x0, n)
+    T = (1.0 - x0) ** a
     if T <= 0.0:
         I2 = 0.0
     else:
-        inv_two_lam = 1.0 / two_lam
-        I2 = _simpson(lambda t: _I2_integrand(t, inv_two_lam), 0.0, T, n) / lam
-    return I1 + _S_value(x0, two_lam) * I2
+        inv_a = 1.0 / a
+        # int_x^1 m dy = (1/lam) * int_0^T dt/(1 - t^{1/a})
+        I2 = _simpson(lambda t: _I2_integrand(t, inv_a), 0.0, T, n) / lam
+    return I1 + _S_value(x0, a) * I2
 
 
 groups = {}
@@ -147,7 +150,8 @@ for key in sorted(groups):
         "mean_inv_t0": mean_inv,
         "std_inv_t0": std_inv,
         # neutral-diffusion theory baseline: E_{x0=e^-theta}[tau_0]
-        "t0_neutral": t0_neutral_diffusion(g["lambda"], math.exp(-g["theta"])),
+        # for dX = -lambda X dt + sqrt(X(1-X)/N) dW
+        "t0_neutral": t0_neutral_diffusion(g["lambda"], math.exp(-g["theta"]), N=g["N"]),
     })
 
 out = {
