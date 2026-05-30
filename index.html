@@ -62,6 +62,7 @@
         <option value="off">off</option>
         <option value="logth_a" selected>t₀ = log θ/α</option>
         <option value="logth_l">t₀ = log θ/λ</option>
+        <option value="neutral">t₀ = neutral diff., x₀=e^(−θ)</option>
       </select>
     </fieldset>
 
@@ -89,15 +90,9 @@ const X_OPTIONS = {
 // y-axis: mean/err are transform-then-average over the data; theory(T, p)
 // applies the SAME transform to a deterministic baseline t0 value T.
 const Y_OPTIONS = {
-  "t0":        { label: "t₀",           mean: p => p.mean_t0,               err: p => p.std_t0,               theory: (T, p) => T,                                  log: true  },
-  "inv_t0":    { label: "1/t₀",         mean: p => p.mean_inv_t0,           err: p => p.std_inv_t0,           theory: (T, p) => 1 / T,                              log: true  },
-  "a_t0":      { label: "α·t₀",         mean: p => p.alpha * p.mean_t0,     err: p => p.alpha * p.std_t0,     theory: (T, p) => p.alpha * T,                        log: true  },
-  "inv_a_t0":  { label: "1/(α·t₀)",     mean: p => p.mean_inv_t0 / p.alpha, err: p => p.std_inv_t0 / p.alpha, theory: (T, p) => 1 / (p.alpha * T),                  log: true  },
-  "l_t0":      { label: "λ·t₀",         mean: p => p.lambda * p.mean_t0,    err: p => p.lambda * p.std_t0,    theory: (T, p) => p.lambda * T,                       log: true  },
-  "inv_l_t0":  { label: "1/(λ·t₀)",     mean: p => p.mean_inv_t0 / p.lambda, err: p => p.std_inv_t0 / p.lambda, theory: (T, p) => 1 / (p.lambda * T),               log: true  },
-  "logth_t0a": { label: "log θ/(t₀·α)", mean: p => (Math.log(p.theta) / p.alpha) * p.mean_inv_t0,
-                                         err:  p => Math.abs(Math.log(p.theta) / p.alpha) * p.std_inv_t0,
-                                         theory: (T, p) => Math.log(p.theta) / (T * p.alpha),                  log: false },
+  "t0":   { label: "t₀",   mean: p => p.mean_t0,            err: p => p.std_t0,            theory: (T, p) => T,             log: true },
+  "a_t0": { label: "α·t₀", mean: p => p.alpha * p.mean_t0,  err: p => p.alpha * p.std_t0,  theory: (T, p) => p.alpha * T,   log: true },
+  "l_t0": { label: "λ·t₀", mean: p => p.lambda * p.mean_t0, err: p => p.lambda * p.std_t0, theory: (T, p) => p.lambda * T,  log: true },
 };
 
 // baselines for the dashed theory curve (deterministic t0 prediction)
@@ -105,6 +100,7 @@ const THEORY_OPTIONS = {
   "off":     { label: "off" },
   "logth_a": { label: "log θ/α", base: p => Math.log(p.theta) / p.alpha },
   "logth_l": { label: "log θ/λ", base: p => Math.log(p.theta) / p.lambda },
+  "neutral": { label: "neutral diffusion (x₀ = e^(−θ))", base: p => p.t0_neutral },
 };
 
 const $ = id => document.getElementById(id);
@@ -172,7 +168,9 @@ function render() {
   const theoryTraces = (theoryOpt && theoryOpt.base) ? psis.map(psi => {
     const tp = RATCHET_DATA.points
       .filter(p => p.psi === psi)
-      .map(p => ({ x: X.val(p), y: Y.theory(theoryOpt.base(p), p), p }))
+      .map(p => ({ p, x: X.val(p), T: theoryOpt.base(p) }))
+      .filter(d => Number.isFinite(d.T))
+      .map(d => ({ x: d.x, y: Y.theory(d.T, d.p), p: d.p }))
       .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y))
       .sort((a, b) => a.x - b.x);
     return {

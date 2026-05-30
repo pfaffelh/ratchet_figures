@@ -33,6 +33,64 @@ def fnum(s):
     return v if math.isfinite(v) else None
 
 
+# -------- Neutral-diffusion theory: E_{x0}[tau_0] for dX = -lam X dt + sqrt(X(1-X)) dW.
+# See neutral.tex for the derivation.
+
+def _S_value(y, two_lam):
+    """Scale function S(y) = int_0^y (1-w)^{-2 lam} dw."""
+    if abs(two_lam - 1.0) < 1e-12:
+        return -math.log1p(-y)
+    return (1.0 - (1.0 - y) ** (1.0 - two_lam)) / (1.0 - two_lam)
+
+
+def _Sm(y, two_lam):
+    """Integrand S(y) * m(y) with m(y) = 2 (1-y)^{2 lam - 1} / y. Limit at 0 is 2."""
+    if y < 1e-15:
+        return 2.0
+    return _S_value(y, two_lam) * 2.0 * (1.0 - y) ** (two_lam - 1.0) / y
+
+
+def _I2_integrand(t, inv_two_lam):
+    """Integrand 1/(1 - t^{1/(2 lam)}) of the substituted second integral."""
+    if t <= 0.0:
+        return 1.0
+    return 1.0 / (1.0 - t ** inv_two_lam)
+
+
+def _simpson(f, a, b, n):
+    """Composite Simpson on [a, b] with n (even) subintervals."""
+    if n < 2:
+        n = 2
+    if n % 2:
+        n += 1
+    h = (b - a) / n
+    s = f(a) + f(b)
+    for i in range(1, n):
+        s += (4.0 if i % 2 else 2.0) * f(a + i * h)
+    return s * h / 3.0
+
+
+def t0_neutral_diffusion(lam, x0, n=4000):
+    """Mean hitting time of 0 for dX = -lam X dt + sqrt(X(1-X)) dW, starting at x0.
+
+    Uses the closed-form
+        u(x) = int_0^x S(y) m(y) dy + S(x) * int_x^1 m(y) dy,
+    with the substitution t = (1-y)^{2 lam} in the second integral so both
+    integrands are bounded.
+    """
+    if lam is None or lam <= 0 or not (0.0 < x0 < 1.0):
+        return None
+    two_lam = 2.0 * lam
+    I1 = _simpson(lambda y: _Sm(y, two_lam), 0.0, x0, n)
+    T = (1.0 - x0) ** two_lam
+    if T <= 0.0:
+        I2 = 0.0
+    else:
+        inv_two_lam = 1.0 / two_lam
+        I2 = _simpson(lambda t: _I2_integrand(t, inv_two_lam), 0.0, T, n) / lam
+    return I1 + _S_value(x0, two_lam) * I2
+
+
 groups = {}
 for path in sorted(glob.glob(os.path.join(DATA_DIR, "summary_N_*_psi_*.csv"))):
     with open(path, newline="") as fh:
@@ -88,6 +146,8 @@ for key in sorted(groups):
         "std_t0": std_t0,
         "mean_inv_t0": mean_inv,
         "std_inv_t0": std_inv,
+        # neutral-diffusion theory baseline: E_{x0=e^-theta}[tau_0]
+        "t0_neutral": t0_neutral_diffusion(g["lambda"], math.exp(-g["theta"])),
     })
 
 out = {
