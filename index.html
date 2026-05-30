@@ -74,6 +74,7 @@
 
 <script>
 const PALETTE = ["#1f77b4","#d62728","#2ca02c","#9467bd","#ff7f0e","#17becf","#8c564b","#e377c2"];
+const MIN_FRAC_HIT = 0.9;  // hide simulated points with < 90% clicking paths
 
 // x-axis choices: parameter-space quantities (constant within a (psi,delta) set)
 const X_OPTIONS = {
@@ -138,7 +139,7 @@ function render() {
 
   const dataTraces = psis.map(psi => {
     const pts = RATCHET_DATA.points
-      .filter(p => p.psi === psi && p.n_used > 0)
+      .filter(p => p.psi === psi && p.n_used > 0 && p.frac_hit >= MIN_FRAC_HIT)
       .map(p => ({ x: X.val(p), y: Y.mean(p), e: Y.err(p), p }))
       .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y))
       .sort((a, b) => a.x - b.x);
