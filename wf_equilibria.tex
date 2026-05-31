@@ -1,0 +1,89 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\newcommand{\Poi}{\mathrm{Poi}}
+\newcommand{\NN}{\mathbb{N}_0}
+\newcommand{\E}{\mathbb{E}}
+\begin{document}
+
+\section*{Two Wright--Fisher updates and their stationary marginals}
+
+\subsection*{Setup}
+Each individual carries a mutation count $k\in\NN$. We use exponential
+selection $w_k = e^{-\alpha k}$ ($\alpha>0$) and Poisson mutation at rate
+$\lambda\ge 0$ (per individual, per generation), so the new mutation count of an
+offspring is the parent's class plus an independent $\Poi(\lambda)$.
+
+Let $Q$ denote a probability distribution on $\NN$ (the marginal class
+distribution of one individual). Two basic operators act on such $Q$:
+\begin{align*}
+  (M_\lambda Q)(k) &\;=\;(Q\ast\Poi(\lambda))(k)
+                \;=\;\sum_{j=0}^{k} Q(j)\,\Poi(\lambda;k-j)
+                \qquad\text{(mutation)},\\
+  (S\,Q)(k)     &\;=\;\frac{w_k\,Q(k)}{\sum_{j\ge 0} w_j\,Q(j)}
+                \qquad\text{(selection / reweighting by $w$).}
+\end{align*}
+We compare two update rules per generation:
+\[
+  \text{(A) ``sel $\to$ mut''}:\quad T_A := M_\mu\circ S,
+  \qquad
+  \text{(B) ``mut $\to$ sel''}:\quad T_B := S\circ M_\lambda.
+\]
+Multinomial resampling of $N$ offspring is applied afterwards; for the
+analysis of the marginal we look at the deterministic large-$N$ limit and
+return to fluctuations at the end.
+
+\subsection*{Two Poisson identities}
+The reason the calculation is short is that both operators preserve the
+Poisson family:
+\begin{align}
+  S\bigl(\Poi(\nu)\bigr)         &\;=\;\Poi\bigl(\nu\,e^{-\alpha}\bigr),
+  \label{eq:sel}\\
+  M_\lambda\bigl(\Poi(\nu)\bigr)    &\;=\;\Poi\bigl(\nu+\lambda\bigr).
+  \label{eq:mut}
+\end{align}
+(Eq.~\eqref{eq:sel} follows from
+$w_k\,\Poi(\nu;k)=e^{-\alpha k}e^{-\nu}\nu^k/k!\propto(\nu e^{-\alpha})^k/k!$,
+i.e.~exponentially tilting Poisson rescales its parameter.
+Eq.~\eqref{eq:mut} is the standard sum-of-independent-Poissons identity.)
+
+\subsection*{Stationary Poisson marginals}
+Suppose the marginal is $Q=\Poi(\theta_{\mathrm{eq}})$ and we look for
+fixed points of $T_A,T_B$.
+
+\paragraph{Model A (sel $\to$ mut).}
+By \eqref{eq:sel} and \eqref{eq:mut},
+\[
+  T_A\bigl(\Poi(\theta_{\mathrm{eq}})\bigr)
+  = M_\mu\bigl(\Poi(\theta_{\mathrm{eq}}e^{-\alpha})\bigr)
+  = \Poi\bigl(\theta_{\mathrm{eq}}\,e^{-\alpha}+\mu\bigr).
+\]
+The fixed-point equation
+$\theta_{\mathrm{eq}}=\theta_{\mathrm{eq}}\,e^{-\alpha}+\mu$ gives
+\begin{equation}\label{eq:thetaA}
+  \boxed{\;\theta_{\mathrm{eq}}^{(A)}\;=\;\frac{\mu}{1-e^{-\alpha}}\;.}
+\end{equation}
+
+\paragraph{Model B (mut $\to$ sel).}
+Now
+\[
+  T_B\bigl(\Poi(\theta_{\mathrm{eq}})\bigr)
+  = S\bigl(\Poi(\theta_{\mathrm{eq}}+\lambda)\bigr)
+  = \Poi\bigl((\theta_{\mathrm{eq}}+\lambda)\,e^{-\alpha}\bigr),
+\]
+so $\theta_{\mathrm{eq}}=(\theta_{\mathrm{eq}}+\lambda)e^{-\alpha}$ yields
+\begin{equation}\label{eq:thetaB}
+  \boxed{\;\theta_{\mathrm{eq}}^{(B)}
+        \;=\;\frac{\lambda\,e^{-\alpha}}{1-e^{-\alpha}}
+        \;=\;\frac{\lambda}{e^{\alpha}-1}\;.}
+\end{equation}
+
+For small $\alpha$, both formulas reduce to $\theta_{\mathrm{eq}}\approx\lambda/\alpha$, but for
+finite $\alpha$ they differ; in particular
+\[
+  \frac{\theta_{\mathrm{eq}}^{(B)}}{\theta_{\mathrm{eq}}^{(A)}}
+  \;=\;\frac{\lambda}{\mu}\cdot\frac{1-e^{-\alpha}}{e^{\alpha}-1}
+  \;=\;\frac{\lambda}{\mu}\cdot e^{-\alpha}.
+\]
+
+\end{document}
