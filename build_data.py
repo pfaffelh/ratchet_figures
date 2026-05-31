@@ -22,6 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIRS = [
     os.path.join(HERE, "ratchet_discrete_psi_delta_stop_at_t0_results"),
     os.path.join(HERE, "ratchet_discrete_psi_delta_stop_at_t0_results_large_N_different_psi"),
+    os.path.join(HERE, "ratchet_discrete_psi_approx_delta_stop_at_t0_results_large_N_different_psi"),
 ]
 OUT = os.path.join(HERE, "data.js")
 
@@ -106,13 +107,15 @@ for data_dir in DATA_DIRS:
     for path in sorted(glob.glob(os.path.join(data_dir, "summary_N_*_psi_*.csv"))):
         with open(path, newline="") as fh:
             for row in csv.DictReader(fh):
-                key = (int(float(row["N"])), float(row["psi"]), float(row["delta"]))
+                sel_mode = row["selection_mode"].strip()
+                key = (int(float(row["N"])), float(row["psi"]), float(row["delta"]), sel_mode)
                 g = groups.get(key)
                 if g is None:
                     g = groups[key] = {
                         "N": int(float(row["N"])),
                         "psi": float(row["psi"]),
                         "delta": float(row["delta"]),
+                        "selection_mode": sel_mode,
                         "alpha": float(row["alpha"]),
                         "lambda": float(row["lambda"]),
                         "theta": float(row["theta"]),
@@ -145,6 +148,7 @@ for key in sorted(groups):
         "psi": g["psi"],
         "delta": g["delta"],
         "N": g["N"],
+        "selection_mode": g["selection_mode"],
         "alpha": g["alpha"],
         "lambda": g["lambda"],
         "theta": g["theta"],
@@ -165,6 +169,7 @@ for key in sorted(groups):
 out = {
     "N_values": sorted({p["N"] for p in points}),
     "psi_values": sorted({p["psi"] for p in points}),
+    "selection_modes": sorted({p["selection_mode"] for p in points}),
     "points": points,
 }
 with open(OUT, "w") as fh:
