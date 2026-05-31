@@ -17,7 +17,12 @@ import os
 import statistics
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(HERE, "ratchet_discrete_psi_delta_stop_at_t0_results")
+# Data sources; each CSV's N is read from the file itself (not the filename),
+# so we group robustly by (N, psi, delta) regardless of how the folder is named.
+DATA_DIRS = [
+    os.path.join(HERE, "ratchet_discrete_psi_delta_stop_at_t0_results"),
+    os.path.join(HERE, "ratchet_discrete_psi_delta_stop_at_t0_results_large_N_different_psi"),
+]
 OUT = os.path.join(HERE, "data.js")
 
 
@@ -95,30 +100,33 @@ def t0_neutral_diffusion(lam, x0, N=1, n=4000):
 
 
 groups = {}
-for path in sorted(glob.glob(os.path.join(DATA_DIR, "summary_N_*_psi_*.csv"))):
-    with open(path, newline="") as fh:
-        for row in csv.DictReader(fh):
-            key = (float(row["psi"]), float(row["delta"]))
-            g = groups.get(key)
-            if g is None:
-                g = groups[key] = {
-                    "psi": float(row["psi"]),
-                    "delta": float(row["delta"]),
-                    "N": int(float(row["N"])),
-                    "alpha": float(row["alpha"]),
-                    "lambda": float(row["lambda"]),
-                    "theta": float(row["theta"]),
-                    "effective_beta": float(row["effective_beta"]),
-                    "n_total": 0,
-                    "n_hit": 0,
-                    "t0": [],
-                }
-            g["n_total"] += 1
-            if row["hit_x0_zero"].strip() == "True":
-                g["n_hit"] += 1
-            t0 = fnum(row.get("t_0"))
-            if t0 is not None and t0 > 0:
-                g["t0"].append(t0)
+for data_dir in DATA_DIRS:
+    if not os.path.isdir(data_dir):
+        continue
+    for path in sorted(glob.glob(os.path.join(data_dir, "summary_N_*_psi_*.csv"))):
+        with open(path, newline="") as fh:
+            for row in csv.DictReader(fh):
+                key = (int(float(row["N"])), float(row["psi"]), float(row["delta"]))
+                g = groups.get(key)
+                if g is None:
+                    g = groups[key] = {
+                        "N": int(float(row["N"])),
+                        "psi": float(row["psi"]),
+                        "delta": float(row["delta"]),
+                        "alpha": float(row["alpha"]),
+                        "lambda": float(row["lambda"]),
+                        "theta": float(row["theta"]),
+                        "effective_beta": float(row["effective_beta"]),
+                        "n_total": 0,
+                        "n_hit": 0,
+                        "t0": [],
+                    }
+                g["n_total"] += 1
+                if row["hit_x0_zero"].strip() == "True":
+                    g["n_hit"] += 1
+                t0 = fnum(row.get("t_0"))
+                if t0 is not None and t0 > 0:
+                    g["t0"].append(t0)
 
 points = []
 for key in sorted(groups):

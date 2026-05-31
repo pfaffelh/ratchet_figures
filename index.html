@@ -50,6 +50,11 @@
     </fieldset>
 
     <fieldset>
+      <legend>N (population size)</legend>
+      <select id="nsel"></select>
+    </fieldset>
+
+    <fieldset>
       <legend>fixed: ψ (show curves)</legend>
       <div class="psi-grid checks" id="psiboxes"></div>
     </fieldset>
@@ -116,15 +121,25 @@ function fillSelect(sel, options) {
 const psiColor = {};
 RATCHET_DATA.psi_values.forEach((psi, i) => { psiColor[psi] = PALETTE[i % PALETTE.length]; });
 
+function selectedN() {
+  return parseInt($("nsel").value, 10);
+}
+
 function buildPsiBoxes() {
   const box = $("psiboxes");
-  RATCHET_DATA.psi_values.forEach(psi => {
+  box.innerHTML = "";
+  const N = selectedN();
+  const psis = [...new Set(
+    RATCHET_DATA.points.filter(p => p.N === N).map(p => p.psi)
+  )].sort((a, b) => a - b);
+  psis.forEach(psi => {
     const lab = document.createElement("label");
     lab.innerHTML =
       `<input type="checkbox" class="psibox" value="${psi}" checked /> ` +
       `<span class="swatch" style="background:${psiColor[psi]}"></span>ψ=${psi}`;
     box.appendChild(lab);
   });
+  document.querySelectorAll(".psibox").forEach(c => c.addEventListener("change", render));
 }
 
 function selectedPsi() {
@@ -136,10 +151,11 @@ function render() {
   const Y = Y_OPTIONS[$("ysel").value];
   const showErr = $("errbars").checked;
   const psis = selectedPsi();
+  const N = selectedN();
 
   const dataTraces = psis.map(psi => {
     const pts = RATCHET_DATA.points
-      .filter(p => p.psi === psi && p.n_used > 0 && p.frac_hit >= MIN_FRAC_HIT)
+      .filter(p => p.N === N && p.psi === psi && p.n_used > 0 && p.frac_hit >= MIN_FRAC_HIT)
       .map(p => ({ x: X.val(p), y: Y.mean(p), e: Y.err(p), p }))
       .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y))
       .sort((a, b) => a.x - b.x);
@@ -168,7 +184,7 @@ function render() {
   const theoryOpt = THEORY_OPTIONS[$("theory").value];
   const theoryTraces = (theoryOpt && theoryOpt.base) ? psis.map(psi => {
     const tp = RATCHET_DATA.points
-      .filter(p => p.psi === psi)
+      .filter(p => p.N === N && p.psi === psi)
       .map(p => ({ p, x: X.val(p), T: theoryOpt.base(p) }))
       .filter(d => Number.isFinite(d.T))
       .map(d => ({ x: d.x, y: Y.theory(d.T, d.p), p: d.p }))
@@ -206,7 +222,16 @@ function render() {
 // ---- init ----
 fillSelect($("xsel"), X_OPTIONS);
 fillSelect($("ysel"), Y_OPTIONS);
-buildPsiBoxes();
+
+// N selector populated from data
+const nSel = $("nsel");
+RATCHET_DATA.N_values.forEach(N => {
+  const opt = document.createElement("option");
+  opt.value = N; opt.textContent = "N = " + N.toLocaleString("de-DE");
+  nSel.appendChild(opt);
+});
+
+buildPsiBoxes(); // depends on selected N; (re-)attaches its listeners
 
 // sensible default log/linear per chosen axis, also updated on change
 function syncXLog() { $("xlog").checked = X_OPTIONS[$("xsel").value].log; }
@@ -215,8 +240,8 @@ syncXLog(); syncYLog();
 
 $("xsel").addEventListener("change", () => { syncXLog(); render(); });
 $("ysel").addEventListener("change", () => { syncYLog(); render(); });
+nSel.addEventListener("change", () => { buildPsiBoxes(); render(); });
 ["xlog", "ylog", "errbars", "theory"].forEach(id => $(id).addEventListener("change", render));
-document.querySelectorAll(".psibox").forEach(c => c.addEventListener("change", render));
 
 render();
 </script>
