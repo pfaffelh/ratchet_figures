@@ -30,9 +30,11 @@
 <body>
 <header>
   <h1>Muller's ratchet — first-loss time t<sub>0</sub></h1>
-  <p>Each point is one (ψ, δ) parameter set (N = 10000). Simulated y-values are computed
-     <b>per path, then averaged</b> (mean ± SD over paths with finite t<sub>0</sub> &gt; 0).
-     Dashed lines are theory curves (no averaging). Hover a point for ψ, δ, α, λ, θ.</p>
+  <p>Each marker is one (ψ, δ) parameter set for the chosen N and selection mode.
+     Simulated y-values are computed <b>per path, then averaged</b>
+     (mean ± SD over paths with finite t<sub>0</sub> &gt; 0; sets with &lt;90%
+     clicking paths are hidden). Dashed lines are theory curves (no averaging,
+     drawn over all δ). Hover a point for ψ, δ, α, λ, θ, N·e^(−θ).</p>
 </header>
 
 <div class="wrap">
@@ -134,6 +136,10 @@ function selectedMode() {
   return $("modesel").value;
 }
 
+// Persistent ψ selection (so toggling N / selection-mode does not reset the
+// checkboxes to all-on). Initially all known ψ values are selected.
+const psiSelected = new Set(RATCHET_DATA.psi_values);
+
 function buildPsiBoxes() {
   const box = $("psiboxes");
   box.innerHTML = "";
@@ -147,11 +153,17 @@ function buildPsiBoxes() {
   psis.forEach(psi => {
     const lab = document.createElement("label");
     lab.innerHTML =
-      `<input type="checkbox" class="psibox" value="${psi}" checked /> ` +
+      `<input type="checkbox" class="psibox" value="${psi}"${psiSelected.has(psi) ? " checked" : ""} /> ` +
       `<span class="swatch" style="background:${psiColor[psi]}"></span>ψ=${psi}`;
     box.appendChild(lab);
   });
-  document.querySelectorAll(".psibox").forEach(c => c.addEventListener("change", render));
+  document.querySelectorAll(".psibox").forEach(c => {
+    c.addEventListener("change", () => {
+      const v = parseFloat(c.value);
+      if (c.checked) psiSelected.add(v); else psiSelected.delete(v);
+      render();
+    });
+  });
 }
 
 function selectedPsi() {
