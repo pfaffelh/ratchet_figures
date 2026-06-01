@@ -254,11 +254,14 @@ function render() {
     }
   }
 
-  // When x is clamped, fit y tightly to just the data inside that x-window
-  // (Plotly's autorange would otherwise span the full, unclamped data).
+  // Always fit y tightly to exactly what is visible: the selected psi, the
+  // current x-window (full x-extent when not clamped), theory on/off and error
+  // bars on/off. (Plotly autorange does not reliably retighten on deselect.)
   let yRange = null;
-  if (xRange) {
-    const [xlo, xhi] = xIsLog ? [Math.pow(10, xRange[0]), Math.pow(10, xRange[1])] : xRange;
+  {
+    const [xlo, xhi] = xRange
+      ? (xIsLog ? [Math.pow(10, xRange[0]), Math.pow(10, xRange[1])] : xRange)
+      : [-Infinity, Infinity];
     let lo = Infinity, hi = -Infinity;     // with error whiskers
     let mlo = Infinity, mhi = -Infinity;   // means only (no whiskers)
     for (const t of traces) {
