@@ -242,6 +242,7 @@ function render() {
 
   // optional manual x-range (log axis needs log10 bounds); blank/invalid = auto
   const xIsLog = $("xlog").checked;
+  const yIsLog = $("ylog").checked;
   const xmin = parseFloat($("xmin").value);
   const xmax = parseFloat($("xmax").value);
   let xRange = null;
@@ -253,11 +254,50 @@ function render() {
     }
   }
 
+  // When x is clamped, fit y tightly to just the data inside that x-window
+  // (Plotly's autorange would otherwise span the full, unclamped data).
+  let yRange = null;
+  if (xRange) {
+    const [xlo, xhi] = xIsLog ? [Math.pow(10, xRange[0]), Math.pow(10, xRange[1])] : xRange;
+    let lo = Infinity, hi = -Infinity;     // with error whiskers
+    let mlo = Infinity, mhi = -Infinity;   // means only (no whiskers)
+    for (const t of traces) {
+      const errArr = (t.error_y && t.error_y.visible && t.error_y.array) ? t.error_y.array : null;
+      for (let i = 0; i < t.x.length; i++) {
+        const x = t.x[i], y = t.y[i];
+        if (!Number.isFinite(x) || !Number.isFinite(y) || x < xlo || x > xhi) continue;
+        const e = errArr && Number.isFinite(errArr[i]) ? errArr[i] : 0;
+        mlo = Math.min(mlo, y); mhi = Math.max(mhi, y);
+        // for log y, a negative lower whisker can't be shown; clamp it out below
+        if (!yIsLog || y - e > 0) lo = Math.min(lo, y - e);
+        else lo = Math.min(lo, y);
+        hi = Math.max(hi, y + e);
+      }
+    }
+    if (Number.isFinite(lo) && Number.isFinite(hi) && hi > 0) {
+      if (yIsLog) {
+        if (lo <= 0) lo = hi / 1e3; // fallback floor if everything non-positive after whisker
+        const loL = Math.log10(lo), hiL = Math.log10(hi);
+        const pad = (hiL - loL) * 0.05 || 0.05;
+        yRange = [loL - pad, hiL + pad];
+      } else {
+        // If the means never go negative, a whisker dipping below 0 is not a
+        // meaningful axis bound — start at 0. Same, mirrored, for all-negative.
+        const floorZero = mlo >= 0;
+        const ceilZero  = mhi <= 0;
+        const rlo = floorZero ? 0 : lo;
+        const rhi = ceilZero  ? 0 : hi;
+        const pad = (rhi - rlo) * 0.05 || Math.abs(rhi) * 0.05 || 1;
+        yRange = [rlo - (floorZero ? 0 : pad), rhi + (ceilZero ? 0 : pad)];
+      }
+    }
+  }
+
   const layout = {
     font: { size: 16 },
     margin: { l: 85, r: 20, t: 10, b: 65 },
     xaxis: { title: { text: X.label, font: { size: 20 } }, tickfont: { size: 15 }, type: xIsLog ? "log" : "linear", zeroline: false, autorange: xRange ? false : true, range: xRange || undefined },
-    yaxis: { title: { text: Y.label, font: { size: 20 } }, tickfont: { size: 15 }, type: $("ylog").checked ? "log" : "linear", zeroline: false },
+    yaxis: { title: { text: Y.label, font: { size: 20 } }, tickfont: { size: 15 }, type: yIsLog ? "log" : "linear", zeroline: false, autorange: yRange ? false : true, range: yRange || undefined },
     legend: { orientation: "h", y: 1.08, font: { size: 16 } },
     hovermode: "closest",
     hoverlabel: { font: { size: 15 } },
