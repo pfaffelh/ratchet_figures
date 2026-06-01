@@ -105,6 +105,7 @@ const X_OPTIONS = {
 const Y_OPTIONS = {
   "t0":   { label: "t₀",   mean: p => p.mean_t0,            err: p => p.std_t0,            theory: (T, p) => T,             log: true },
   "a_t0": { label: "α·t₀", mean: p => p.alpha * p.mean_t0,  err: p => p.alpha * p.std_t0,  theory: (T, p) => p.alpha * T,   log: true },
+  "a_t0_logth": { label: "α·t₀/log θ", mean: p => p.alpha * p.mean_t0 / Math.log(p.theta), err: p => p.alpha * p.std_t0 / Math.log(p.theta), theory: (T, p) => p.alpha * T / Math.log(p.theta), log: true },
   "l_t0": { label: "λ·t₀", mean: p => p.lambda * p.mean_t0, err: p => p.lambda * p.std_t0, theory: (T, p) => p.lambda * T,  log: true },
 };
 
