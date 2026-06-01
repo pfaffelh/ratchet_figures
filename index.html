@@ -43,6 +43,12 @@
       <legend>x-axis</legend>
       <select id="xsel"></select>
       <label class="row" style="margin-top:8px"><input type="checkbox" id="xlog" /> log scale</label>
+      <label class="row" style="margin-top:8px">range (blank = auto):</label>
+      <div style="display:flex; gap:8px; align-items:center">
+        <input type="number" id="xmin" placeholder="min" step="any" style="width:100%; padding:6px; font-size:16px; border-radius:6px; border:1px solid #c9c9c9" />
+        <span>–</span>
+        <input type="number" id="xmax" placeholder="max" step="any" style="width:100%; padding:6px; font-size:16px; border-radius:6px; border:1px solid #c9c9c9" />
+      </div>
     </fieldset>
 
     <fieldset>
@@ -234,10 +240,23 @@ function render() {
 
   const traces = [...theoryTraces, ...dataTraces];
 
+  // optional manual x-range (log axis needs log10 bounds); blank/invalid = auto
+  const xIsLog = $("xlog").checked;
+  const xmin = parseFloat($("xmin").value);
+  const xmax = parseFloat($("xmax").value);
+  let xRange = null;
+  if (Number.isFinite(xmin) && Number.isFinite(xmax) && xmin < xmax) {
+    if (xIsLog) {
+      if (xmin > 0) xRange = [Math.log10(xmin), Math.log10(xmax)]; // log needs positive bounds
+    } else {
+      xRange = [xmin, xmax];
+    }
+  }
+
   const layout = {
     font: { size: 16 },
     margin: { l: 85, r: 20, t: 10, b: 65 },
-    xaxis: { title: { text: X.label, font: { size: 20 } }, tickfont: { size: 15 }, type: $("xlog").checked ? "log" : "linear", zeroline: false },
+    xaxis: { title: { text: X.label, font: { size: 20 } }, tickfont: { size: 15 }, type: xIsLog ? "log" : "linear", zeroline: false, autorange: xRange ? false : true, range: xRange || undefined },
     yaxis: { title: { text: Y.label, font: { size: 20 } }, tickfont: { size: 15 }, type: $("ylog").checked ? "log" : "linear", zeroline: false },
     legend: { orientation: "h", y: 1.08, font: { size: 16 } },
     hovermode: "closest",
@@ -278,6 +297,7 @@ $("ysel").addEventListener("change", () => { syncYLog(); render(); });
 nSel.addEventListener("change", () => { buildPsiBoxes(); render(); });
 modeSel.addEventListener("change", () => { buildPsiBoxes(); render(); });
 ["xlog", "ylog", "errbars", "theory"].forEach(id => $(id).addEventListener("change", render));
+["xmin", "xmax"].forEach(id => $(id).addEventListener("input", render));
 
 render();
 </script>
