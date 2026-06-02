@@ -20,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 N_SEL = 10000
 MODE = "exponential"
-MIN_FRAC_HIT = 0.9          # same path-validity filter as the figure/web tool
+MIN_FRAC_HIT = 1.0          # show a cell only if 100% of paths clicked
 OUT = os.path.join(HERE, "table_N10000_exponential.tex")
 
 

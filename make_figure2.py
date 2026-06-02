@@ -35,9 +35,9 @@ DATA_DIRS = [
 N_SEL = 10000
 MODE = "exponential"
 PSI_SET = {2.0, 5.0, 10.0}   # show only these psi
-THETA_MIN = 2.0         # theta > THETA_MIN
+THETA_MIN = 1.0         # theta > THETA_MIN
 ALPHA_MAX = 0.2         # alpha < ALPHA_MAX
-MIN_FRAC_HIT = 0.9
+MIN_FRAC_HIT = 1.0      # keep only points where 100% of paths clicked
 OUT_BASENAME = "figure_Nalpha_alphat0_logtheta_N10000_exponential_psi2_5_10_logy"
 
 # Plotly PALETTE, indexed by position of psi in sorted psi_values
@@ -159,9 +159,10 @@ def main():
                for psi in psis]
     labels = [f"ψ={psi:g}" for psi in psis]
     handles.append(Line2D([0], [0], color="0.4", lw=2, ls="--"))
-    labels.append(r"Theorie: $\log\theta/\alpha$")
+    labels.append(r"$\frac{\log\theta}{\alpha}$")
     ax.legend(handles, labels, frameon=False,
-              loc="center left", bbox_to_anchor=(1.0, 0.5))
+              loc="upper center", bbox_to_anchor=(0.5, -0.16),
+              ncol=len(labels))
 
     pdf = os.path.join(HERE, OUT_BASENAME + ".pdf")
     png = os.path.join(HERE, OUT_BASENAME + ".png")
