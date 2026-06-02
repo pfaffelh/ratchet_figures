@@ -1,0 +1,38 @@
+\documentclass[10pt]{article}
+\usepackage[a4paper,landscape,margin=1.2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\begin{document}
+
+\begin{table}[t]
+\centering
+\caption{Simulated values for population size $N=10000$, selection mode
+\texttt{exponential} (no restriction on $\theta$, $\alpha$, $\psi$).
+Rows: $\psi$; columns: $\delta$. Each cell lists, top to bottom:
+$N\alpha$, $N\,e^{-\theta}$, $\theta$, $t_0$, $t_0\,\alpha/\log\theta$.
+``--'' marks parameter sets with fewer than 90\% clicking
+paths.}
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\scriptsize
+\begin{tabular}{lccccccccc}
+\toprule
+$\psi \backslash \delta$ & $0.1$ & $0.2$ & $0.3$ & $0.4$ & $0.5$ & $0.6$ & $0.7$ & $0.8$ & $0.9$ \\
+\midrule
+$0.7$ & \shortstack{1.758 \\ 3981 \\ 0.921 \\ 2.498e+04 \\ $<0$} & \shortstack{4.417 \\ 1585 \\ 1.842 \\ 7795 \\ 5.636} & \shortstack{11.09 \\ 631 \\ 2.763 \\ 2846 \\ 3.107} & \shortstack{27.87 \\ 251.2 \\ 3.684 \\ 1059 \\ 2.263} & \shortstack{70 \\ 100 \\ 4.605 \\ 441.5 \\ 2.024} & \shortstack{175.8 \\ 39.81 \\ 5.526 \\ 180.8 \\ 1.859} & \shortstack{441.7 \\ 15.85 \\ 6.447 \\ 70.47 \\ 1.670} & \shortstack{1109 \\ 6.31 \\ 7.368 \\ 34.24 \\ 1.902} & \shortstack{2787 \\ 2.512 \\ 8.289 \\ 25.1 \\ 3.308} \\
+\addlinespace
+$1$ & \shortstack{2.512 \\ 3981 \\ 0.921 \\ 2.562e+04 \\ $<0$} & \shortstack{6.31 \\ 1585 \\ 1.842 \\ 7701 \\ 7.954} & \shortstack{15.85 \\ 631 \\ 2.763 \\ 2829 \\ 4.412} & \shortstack{39.81 \\ 251.2 \\ 3.684 \\ 1050 \\ 3.206} & \shortstack{100 \\ 100 \\ 4.605 \\ 419.2 \\ 2.745} & \shortstack{251.2 \\ 39.81 \\ 5.526 \\ 171.3 \\ 2.517} & \shortstack{631 \\ 15.85 \\ 6.447 \\ 70.74 \\ 2.395} & \shortstack{1585 \\ 6.31 \\ 7.368 \\ 38.03 \\ 3.018} & \shortstack{3981 \\ 2.512 \\ 8.289 \\ 51.49 \\ 9.693} \\
+\addlinespace
+$1.3$ & \shortstack{3.265 \\ 3981 \\ 0.921 \\ 2.799e+04 \\ $<0$} & \shortstack{8.202 \\ 1585 \\ 1.842 \\ 7834 \\ 10.519} & \shortstack{20.6 \\ 631 \\ 2.763 \\ 2734 \\ 5.542} & \shortstack{51.75 \\ 251.2 \\ 3.684 \\ 1019 \\ 4.046} & \shortstack{130 \\ 100 \\ 4.605 \\ 427.9 \\ 3.643} & \shortstack{326.5 \\ 39.81 \\ 5.526 \\ 173.6 \\ 3.316} & \shortstack{820.2 \\ 15.85 \\ 6.447 \\ 75.85 \\ 3.338} & \shortstack{2060 \\ 6.31 \\ 7.368 \\ 48.07 \\ 4.959} & \shortstack{5175 \\ 2.512 \\ 8.289 \\ 230.1 \\ 56.317} \\
+\addlinespace
+$2$ & \shortstack{5.024 \\ 3981 \\ 0.921 \\ 3.613e+04 \\ $<0$} & \shortstack{12.62 \\ 1585 \\ 1.842 \\ 9338 \\ 19.289} & \shortstack{31.7 \\ 631 \\ 2.763 \\ 3152 \\ 9.831} & \shortstack{79.62 \\ 251.2 \\ 3.684 \\ 1148 \\ 7.007} & \shortstack{200 \\ 100 \\ 4.605 \\ 458.8 \\ 6.009} & \shortstack{502.4 \\ 39.81 \\ 5.526 \\ 194.3 \\ 5.711} & \shortstack{1262 \\ 15.85 \\ 6.447 \\ 102.3 \\ 6.929} & \shortstack{3170 \\ 6.31 \\ 7.368 \\ 125.2 \\ 19.878} & -- \\
+\addlinespace
+$5$ & \shortstack{12.56 \\ 3981 \\ 0.921 \\ 1.6e+05 \\ $<0$} & \shortstack{31.55 \\ 1585 \\ 1.842 \\ 2.993e+04 \\ 154.565} & \shortstack{79.24 \\ 631 \\ 2.763 \\ 6914 \\ 53.907} & \shortstack{199.1 \\ 251.2 \\ 3.684 \\ 2608 \\ 39.812} & \shortstack{500 \\ 100 \\ 4.605 \\ 1072 \\ 35.092} & \shortstack{1256 \\ 39.81 \\ 5.526 \\ 693.6 \\ 50.956} & \shortstack{3155 \\ 15.85 \\ 6.447 \\ 2558 \\ 432.959} & -- & -- \\
+\addlinespace
+$10$ & -- & \shortstack{63.1 \\ 1585 \\ 1.842 \\ 2.841e+05 \\ 2934.484} & \shortstack{158.5 \\ 631 \\ 2.763 \\ 5.724e+04 \\ 892.647} & \shortstack{398.1 \\ 251.2 \\ 3.684 \\ 1.71e+04 \\ 522.050} & \shortstack{1000 \\ 100 \\ 4.605 \\ 1.109e+04 \\ 726.411} & \shortstack{2512 \\ 39.81 \\ 5.526 \\ 7.529e+04 \\ 11062.181} & -- & -- & -- \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\end{document}
