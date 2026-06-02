@@ -1,0 +1,2 @@
+N,psi,delta,lambda,theta,alpha,effective_beta,psi_check,selection_mode,path_index,t_0,first_loss_time,kappa_1_at_t0,X0_count_at_stop,X_0_at_stop,leading_zero_count_at_t0,first_nonzero_class_at_t0
+100000,1.0,0.9,3.2766360300953092,10.361632918473205,0.31622776601683783,-0.10308564049496136,0.9999999999999999,exponential,0,88.0,88.0,8.83219,0,0.0,1.0,1.0

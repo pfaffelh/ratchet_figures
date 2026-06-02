@@ -23,6 +23,7 @@ DATA_DIRS = [
     os.path.join(HERE, "ratchet_discrete_psi_delta_stop_at_t0_results"),
     os.path.join(HERE, "ratchet_discrete_psi_delta_stop_at_t0_results_large_N_different_psi"),
     os.path.join(HERE, "ratchet_discrete_psi_approx_delta_stop_at_t0_results_large_N_different_psi"),
+    os.path.join(HERE, "ratchet_discrete_psi_delta_stop_at_t0_results_large_N"),
 ]
 OUT = os.path.join(HERE, "data.js")
 
