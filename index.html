@@ -109,7 +109,6 @@ const MIN_FRAC_HIT = 0.9;  // hide simulated points with < 90% clicking paths
 // x-axis choices: parameter-space quantities (constant within a (psi,delta) set)
 const X_OPTIONS = {
   "delta":   { label: "δ",        val: p => p.delta,                 log: false },
-  "alpha":   { label: "α",        val: p => p.alpha,                 log: true  },
   "lambda":  { label: "λ",        val: p => p.lambda,                log: true  },
   "N_alpha": { label: "N·α",      val: p => p.N * p.alpha,           log: true  },
   "N_lambda":{ label: "N·λ",      val: p => p.N * p.lambda,          log: true  },
