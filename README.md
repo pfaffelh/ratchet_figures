@@ -23,7 +23,7 @@ and the map $t \mapsto K^\ast(t)$ is almost surely non-decreasing.
 
 The most interesting question in Muller's ratchet concerns the speed of
 $t \mapsto K^\ast(t)$ as $t \to \infty$, which we refer to as the clicking
-rate of Muller's ratchet. Using a new dual process, we give a partial answer by calculating $\mathbf E\left(\sum_{k=1}^\infty kX_k(t) \right)$ with an error of $\mathcal O(1/N^2)$ for fixed $t>0$. Our result suggests that $\Pi_N:=N\alpha e^{-\lambda/\alpha}$ is an important quantity for determining the speed of the ratchet, as long as $\Pi_N \gg 1$: If $\Pi_N \ll 1$, clicks occur frequently on a time-scale of $\Pi_N$ generations, while it clicks rarely on that time-scale if $\Pi_N \gg 1$.
+rate of Muller's ratchet. We give a partial answer by calculating $\mathbf E\left(\sum_{k=1}^\infty kX_k(t) \right)$ with an error of $\mathcal O(1/N^2)$ for fixed $t>0$. Our result suggests that $\Pi_N:=N\alpha e^{-\lambda/\alpha}$ is an important quantity for determining the speed of the ratchet, as long as $\Pi_N \gg 1$: If $\Pi_N \ll 1$, clicks occur frequently on a time-scale of $\Pi_N$ generations, while it clicks rarely on that time-scale if $\Pi_N \gg 1$.
 ## Content
 This repository contains four types of files: files in the folder
 
