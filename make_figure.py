@@ -137,7 +137,7 @@ def main():
     ax.set_ylim(0, 15)   # clip the long upper tails
 
     # log10 positions -> power-of-ten tick labels; tighten x to the data
-    lo = math.ceil(min(xs_th)); hi = math.floor(max(xs_th))
+    lo = math.floor(min(xs_th)); hi = math.floor(max(xs_th))
     ticks = list(range(lo, hi + 1))
     ax.set_xticks(ticks)
     ax.set_xticklabels([rf"$10^{{{t}}}$" for t in ticks])

@@ -38,22 +38,25 @@ def fmt(v, spec):
     return format(v, spec)
 
 
-def cell(p):
-    """The five stacked values for one (psi, delta) parameter set."""
-    n_alpha = p["N"] * p["alpha"]
-    n_emtheta = p["N"] * math.exp(-p["theta"])
+# the five quantities, in row order; label is the entry in the label column
+QUANTITIES = [
+    (r"$N\alpha$",                 lambda p: fmt(p["N"] * p["alpha"], ".4g")),
+    (r"$N\lambda$",                lambda p: fmt(p["N"] * p["lambda"], ".4g")),
+    (r"$N\,e^{-\theta}$",          lambda p: fmt(p["N"] * math.exp(-p["theta"]), ".4g")),
+    (r"$t_0$",                     lambda p: fmt(p["mean_t0"], ".4g")),
+    (r"$t_0\,\alpha/\log\theta$",  lambda p: _y_logtheta(p)),
+]
+PSI_ROW = 2   # 0-based: put psi on the 3rd of the five rows (height of N e^{-theta})
+
+
+def _y_logtheta(p):
     theta = p["theta"]
-    t0 = p["mean_t0"]
     logth = math.log(theta) if theta > 0 else None
     if logth is not None and logth < 0:
-        y_str = "$<0$"                       # log(theta) < 0: report only "<0"
-    elif t0 is not None and logth not in (None, 0):
-        y_str = fmt(t0 * p["alpha"] / logth, ".3f")
-    else:
-        y_str = "--"
-    rows = [fmt(n_alpha, ".4g"), fmt(n_emtheta, ".4g"), fmt(theta, ".3f"),
-            fmt(t0, ".4g"), y_str]
-    return r"\shortstack{" + r" \\ ".join(rows) + "}"
+        return "$<0$"                        # log(theta) < 0: report only "<0"
+    if p["mean_t0"] is not None and logth not in (None, 0):
+        return fmt(p["mean_t0"] * p["alpha"] / logth, ".3f")
+    return "--"
 
 
 def main():
@@ -66,36 +69,40 @@ def main():
     deltas = sorted({round(p["delta"], 10) for p in pts})
     index = {(p["psi"], round(p["delta"], 10)): p for p in pts}
 
-    colspec = "l" + "c" * len(deltas)
-    header = " & ".join([r"$\psi \backslash \delta$"]
+    colspec = "c l" + "c" * len(deltas)
+    header = " & ".join([r"$\psi \backslash \delta$", ""]
                         + [f"${d:g}$" for d in deltas]) + r" \\"
 
-    lines = []
+    # each psi is a block of five real rows (one per quantity); psi sits on the
+    # 3rd row so it aligns exactly with the 3rd entry (N e^{-theta}). Blocks are
+    # separated by a horizontal rule.
+    blocks = []
     for psi in psis:
-        cells = []
-        for d in deltas:
-            p = index.get((psi, d))
-            cells.append(cell(p) if p else "--")
-        lines.append(f"${psi:g}$ & " + " & ".join(cells) + r" \\")
+        rows = []
+        for q, (label, valfn) in enumerate(QUANTITIES):
+            psi_col = f"${psi:g}$" if q == PSI_ROW else ""
+            cells = [valfn(index[(psi, d)]) if (psi, d) in index else "--"
+                     for d in deltas]
+            rows.append(f"{psi_col} & {label} & " + " & ".join(cells) + r" \\")
+        blocks.append("\n".join(rows))
 
-    body = "\n\\addlinespace\n".join(lines)
+    body = "\n\\midrule\n".join(blocks)
 
     tex = rf"""\documentclass[10pt]{{article}}
-\usepackage[a4paper,landscape,margin=1.2cm]{{geometry}}
+\usepackage[a4paper,margin=1.5cm]{{geometry}}
 \usepackage{{booktabs}}
-\usepackage{{graphicx}}
+\usepackage[export]{{adjustbox}}
 \begin{{document}}
 
 \begin{{table}}[t]
 \centering
 \caption{{Simulated values for population size $N={N_SEL}$, selection mode
 \texttt{{{MODE}}} (no restriction on $\theta$, $\alpha$, $\psi$).
-Rows: $\psi$; columns: $\delta$. Each cell lists, top to bottom:
-$N\alpha$, $N\,e^{{-\theta}}$, $\theta$, $t_0$, $t_0\,\alpha/\log\theta$.
-``--'' marks parameter sets with fewer than {int(MIN_FRAC_HIT*100)}\% clicking
-paths.}}
+Rows: $\psi$ (each a block of five rows, one per quantity named in the label
+column); columns: $\delta$. ``--'' marks parameter sets with fewer than
+{int(MIN_FRAC_HIT*100)}\% clicking paths.}}
 \setlength{{\tabcolsep}}{{4pt}}
-\resizebox{{\textwidth}}{{!}}{{%
+\begin{{adjustbox}}{{max width=\textwidth, max totalheight=0.9\textheight, center}}
 \scriptsize
 \begin{{tabular}}{{{colspec}}}
 \toprule
@@ -103,8 +110,8 @@ paths.}}
 \midrule
 {body}
 \bottomrule
-\end{{tabular}}%
-}}
+\end{{tabular}}
+\end{{adjustbox}}
 \end{{table}}
 
 \end{{document}}
