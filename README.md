@@ -28,9 +28,7 @@ rate of Muller's ratchet. We give a partial answer by calculating $\mathbf E\lef
 This repository contains four types of files: files in the folder
 
 -Simulations: Simulates the discrete time version of the ratchet on a GPU (if available). We get $m_1, X_0(t), Cov(X_0(t), m1_(t))$ and the trajectory of the connection between $m_1(t)$ and $X_0(t)$. <br>
--Plots: Code to present the results.  <br>
-Intuition: Code to create the plots that enhance the intuition of our results. <br>
-Theory: Calculation of some theoretical integrals. <br>
+
 
 ### Funding Acknowledgement
 
