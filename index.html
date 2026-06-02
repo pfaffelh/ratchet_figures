@@ -73,6 +73,18 @@
     </fieldset>
 
     <fieldset>
+      <legend>parameter filters (blank = off)</legend>
+      <label class="row" style="display:flex; align-items:center; gap:8px">
+        θ &gt;
+        <input type="number" id="thetamin" placeholder="min θ" step="any" style="flex:1 1 auto; padding:6px; font-size:16px; border-radius:6px; border:1px solid #c9c9c9" />
+      </label>
+      <label class="row" style="display:flex; align-items:center; gap:8px; margin-top:6px">
+        α &lt;
+        <input type="number" id="alphamax" placeholder="max α" step="any" style="flex:1 1 auto; padding:6px; font-size:16px; border-radius:6px; border:1px solid #c9c9c9" />
+      </label>
+    </fieldset>
+
+    <fieldset>
       <legend>display</legend>
       <label class="row"><input type="checkbox" id="errbars" checked /> error bars (± SD)</label>
       <label class="row" style="margin-top:8px">theory curve (dashed):</label>
@@ -185,10 +197,17 @@ function render() {
   const N = selectedN();
   const mode = selectedMode();
 
+  // parameter filters (blank = off): keep only theta > thetaMin and alpha < alphaMax
+  const thetaMin = parseFloat($("thetamin").value);
+  const alphaMax = parseFloat($("alphamax").value);
+  const passFilter = p =>
+    (!Number.isFinite(thetaMin) || p.theta > thetaMin) &&
+    (!Number.isFinite(alphaMax) || p.alpha < alphaMax);
+
   const dataTraces = psis.map(psi => {
     const pts = RATCHET_DATA.points
       .filter(p => p.N === N && p.selection_mode === mode && p.psi === psi
-                && p.n_used > 0 && p.frac_hit >= MIN_FRAC_HIT)
+                && p.n_used > 0 && p.frac_hit >= MIN_FRAC_HIT && passFilter(p))
       .map(p => ({ x: X.val(p), y: Y.mean(p), e: Y.err(p), p }))
       .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y))
       .sort((a, b) => a.x - b.x);
@@ -217,7 +236,7 @@ function render() {
   const theoryOpt = THEORY_OPTIONS[$("theory").value];
   const theoryTraces = (theoryOpt && theoryOpt.base) ? psis.map(psi => {
     const tp = RATCHET_DATA.points
-      .filter(p => p.N === N && p.selection_mode === mode && p.psi === psi)
+      .filter(p => p.N === N && p.selection_mode === mode && p.psi === psi && passFilter(p))
       .map(p => ({ p, x: X.val(p), T: theoryOpt.base(p) }))
       .filter(d => Number.isFinite(d.T))
       .map(d => ({ x: d.x, y: Y.theory(d.T, d.p), p: d.p }))
@@ -340,7 +359,7 @@ $("ysel").addEventListener("change", () => { syncYLog(); render(); });
 nSel.addEventListener("change", () => { buildPsiBoxes(); render(); });
 modeSel.addEventListener("change", () => { buildPsiBoxes(); render(); });
 ["xlog", "ylog", "errbars", "theory"].forEach(id => $(id).addEventListener("change", render));
-["xmin", "xmax"].forEach(id => $(id).addEventListener("input", render));
+["xmin", "xmax", "thetamin", "alphamax"].forEach(id => $(id).addEventListener("input", render));
 
 render();
 </script>
