@@ -17,7 +17,6 @@ BATCH_SIZE = 1000
 SEED = 22
 
 T_MAX = 1000
-STOP_MULTIPLIER_AFTER_T0 = 5
 
 OUTPUT_DIR = "ratchet_discrete_psi_delta_results"
 
@@ -306,7 +305,6 @@ def simulate_parameter_set(
     runs,
     batch_size,
     t_max,
-    stop_multiplier_after_t0,
     output_dir,
     seed,
     device,
@@ -479,7 +477,6 @@ def run_all_parameter_sets(
     runs,
     batch_size,
     t_max,
-    stop_multiplier_after_t0,
     seed,
     require_cuda,
     dtype,
@@ -517,7 +514,6 @@ def run_all_parameter_sets(
             runs=runs,
             batch_size=batch_size,
             t_max=t_max,
-            stop_multiplier_after_t0=stop_multiplier_after_t0,
             output_dir=output_dir,
             seed=seed + run_index,
             device=device,
@@ -551,7 +547,6 @@ if __name__ == "__main__":
         runs=RUNS,
         batch_size=BATCH_SIZE,
         t_max=T_MAX,
-        stop_multiplier_after_t0=STOP_MULTIPLIER_AFTER_T0,
         seed=SEED,
         require_cuda=REQUIRE_CUDA,
         dtype=TORCH_DTYPE,
