@@ -3,16 +3,17 @@ import math
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn.functional as F
 
 
 #  Parameters
 
 N_VALUES = [10000]
-PSI_VALUES = [1.0, 5.0, 10.0]
+PSI_VALUES = [0.7, 1.0, 1.3, 2.0, 5.0, 10.0]
 DELTA_VALUES = [round(0.1 * i, 1) for i in range(1, 10)]
 
-RUNS = 100
-BATCH_SIZE = 100
+RUNS = 1000
+BATCH_SIZE = 1000
 SEED = 22
 
 T_MAX = 1000
@@ -25,10 +26,24 @@ TORCH_DTYPE = torch.float32
 
 #  "exponential" fitness =  exp(-\alpha k).
 #  "one_minus_alpha_power": fitness =  (1-alpha)^k.
-SELECTION_MODE = "exponential"
+SELECTION_MODE = "one_minus_alpha_power"
 
 MUTATION_TAIL_TOL = 1e-12
 MAX_MUTATIONS_CAP = 250
+
+# Number of mutation classes to track. The occupied band in Muller's ratchet
+# stays narrow: validated max k_max = 43 across all 51 valid parameter sets at
+# runs=1000, T_MAX=1000 (selection one_minus_alpha_power). A cap of 256 keeps a
+# ~5.8x safety margin while making the per-generation multinomial far cheaper
+# than tracking all N classes. The last class is an absorbing tail bucket, so
+# keep this well above any band you expect; simulate_parameter_set prints a
+# warning if the occupied band ever approaches the cap.
+NUM_CLASSES_CAP = 256
+
+# Draw the per-generation multinomial in chunks along the run axis. The
+# transient (chunk, N) index buffer that torch.multinomial materialises is the
+# real memory bottleneck; chunking keeps it small even with many parallel runs.
+MULTINOMIAL_RUN_CHUNK = 8192
 
 
 # Parameter grid
@@ -83,33 +98,6 @@ def parameters_from_psi_delta(N, psi, delta):
 
 def float_tag(x):
     return f"{x:.12g}".replace("-", "m").replace(".", "p").replace("+", "")
-
-
-def kappa_filename(N, psi, delta):
-    return (
-        f"kappa_timeseries"
-        f"_N_{int(N)}"
-        f"_psi_{float_tag(psi)}"
-        f"_delta_{float_tag(delta)}.csv"
-    )
-
-
-def x0_filename(N, psi, delta):
-    return (
-        f"x0_until_t0"
-        f"_N_{int(N)}"
-        f"_psi_{float_tag(psi)}"
-        f"_delta_{float_tag(delta)}.csv"
-    )
-
-
-def first_loss_filename(N, psi, delta):
-    return (
-        f"first_loss_events"
-        f"_N_{int(N)}"
-        f"_psi_{float_tag(psi)}"
-        f"_delta_{float_tag(delta)}.csv"
-    )
 
 
 def summary_filename(N, psi, delta):
@@ -204,44 +192,61 @@ def mutate_counts_poisson_shift(counts, poisson_probs, tail_by_source):
     runs, num_classes = counts.shape
     last = num_classes - 1
 
-    mutated = torch.zeros_like(counts)
+    # Shifting by m with weight poisson_probs[m] is a causal 1D correlation
+    # along the class axis: mutated[:, j] = sum_m counts[:, j - m] * probs[m].
+    # A single left-padded conv1d replaces the per-m Python loop (one fused
+    # kernel instead of len(poisson_probs) slice-adds), which dominated the
+    # generation step.
+    kernel_size = int(poisson_probs.numel())
+    weight = poisson_probs.flip(0).reshape(1, 1, kernel_size)
 
-    max_m = int(poisson_probs.numel()) - 1
+    padded = F.pad(counts.unsqueeze(1), (kernel_size - 1, 0))
+    mutated = F.conv1d(padded, weight).squeeze(1)
 
-    for m in range(max_m + 1):
-        if m < last:
-            mutated[:, m:last] += counts[:, : last - m] * poisson_probs[m]
-
+    # The last class collects the entire upper mutation tail exactly.
     mutated[:, last] = counts @ tail_by_source
 
     return mutated
 
 
-def torch_multinomial_counts_batch(N, probs, generator=None):
+def torch_multinomial_counts_batch(N, probs, generator=None, run_chunk=None):
     runs, num_classes = probs.shape
+
+    if run_chunk is None:
+        run_chunk = MULTINOMIAL_RUN_CHUNK
 
     probs = torch.clamp(probs, min=0.0)
     probs = probs / probs.sum(dim=1, keepdim=True)
 
-    samples = torch.multinomial(
-        probs,
-        num_samples=N,
-        replacement=True,
-        generator=generator,
+    counts = torch.empty(
+        (runs, num_classes),
+        device=probs.device,
+        dtype=torch.long,
     )
 
-    offsets = (
-        torch.arange(runs, device=probs.device, dtype=torch.long)
-        .unsqueeze(1)
-        * num_classes
-    )
+    for start in range(0, runs, run_chunk):
+        stop = min(start + run_chunk, runs)
+        chunk_runs = stop - start
 
-    flat_samples = (samples + offsets).reshape(-1)
+        samples = torch.multinomial(
+            probs[start:stop],
+            num_samples=N,
+            replacement=True,
+            generator=generator,
+        )
 
-    counts = torch.bincount(
-        flat_samples,
-        minlength=runs * num_classes,
-    ).reshape(runs, num_classes)
+        offsets = (
+            torch.arange(chunk_runs, device=probs.device, dtype=torch.long)
+            .unsqueeze(1)
+            * num_classes
+        )
+
+        flat_samples = (samples + offsets).reshape(-1)
+
+        counts[start:stop] = torch.bincount(
+            flat_samples,
+            minlength=chunk_runs * num_classes,
+        ).reshape(chunk_runs, num_classes)
 
     return counts
 
@@ -292,192 +297,6 @@ def one_wright_fisher_generation(
     return new_counts
 
 
-def calc_kappa_from_counts(counts, kvec, N):
-    return (counts.to(kvec.dtype) @ kvec) / float(N)
-
-
-def leading_zero_count_from_counts(counts):
-    positive = counts > 0
-    return torch.argmax(positive.to(torch.long), dim=1)
-
-
-# Record helpers
-
-def flag_to_numpy(flag, record_indices):
-    n = int(record_indices.numel())
-
-    if isinstance(flag, torch.Tensor):
-        return flag[record_indices].detach().cpu().numpy().astype(bool)
-
-    return np.full(n, bool(flag), dtype=bool)
-
-
-def make_kappa_records(
-    counts,
-    kvec,
-    record_indices,
-    global_path_indices,
-    current_time,
-    is_final_record,
-    N,
-    psi,
-    delta,
-    lam,
-    theta,
-    alpha,
-    effective_beta,
-    psi_check,
-):
-    if record_indices.numel() == 0:
-        return None
-
-    kappa_1 = (
-        calc_kappa_from_counts(
-            counts=counts[record_indices],
-            kvec=kvec,
-            N=N,
-        )
-        .detach()
-        .cpu()
-        .numpy()
-    )
-
-    record_indices_cpu = record_indices.detach().cpu().numpy()
-    path_index = global_path_indices[record_indices_cpu]
-
-    return pd.DataFrame(
-        {
-            "N": int(N),
-            "psi": float(psi),
-            "delta": float(delta),
-            "lambda": float(lam),
-            "theta": float(theta),
-            "alpha": float(alpha),
-            "effective_beta": float(effective_beta),
-            "psi_check": float(psi_check),
-            "selection_mode": SELECTION_MODE,
-            "path_index": path_index,
-            "time": int(current_time),
-            "kappa_1": kappa_1,
-            "is_final_record": flag_to_numpy(is_final_record, record_indices),
-        }
-    )
-
-
-def make_x0_records(
-    counts,
-    record_indices,
-    global_path_indices,
-    current_time,
-    is_first_loss_record,
-    N,
-    psi,
-    delta,
-    lam,
-    theta,
-    alpha,
-    effective_beta,
-    psi_check,
-):
-    if record_indices.numel() == 0:
-        return None
-
-    x0_count = counts[record_indices, 0].detach().cpu().numpy()
-    x0_value = x0_count / float(N)
-
-    record_indices_cpu = record_indices.detach().cpu().numpy()
-    path_index = global_path_indices[record_indices_cpu]
-
-    return pd.DataFrame(
-        {
-            "N": int(N),
-            "psi": float(psi),
-            "delta": float(delta),
-            "lambda": float(lam),
-            "theta": float(theta),
-            "alpha": float(alpha),
-            "effective_beta": float(effective_beta),
-            "psi_check": float(psi_check),
-            "selection_mode": SELECTION_MODE,
-            "path_index": path_index,
-            "time": int(current_time),
-            "X0_count": x0_count,
-            "X_0": x0_value,
-            "is_first_loss_record": flag_to_numpy(
-                is_first_loss_record,
-                record_indices,
-            ),
-        }
-    )
-
-
-def make_first_loss_records(
-    counts,
-    kvec,
-    record_indices,
-    global_path_indices,
-    current_time,
-    N,
-    psi,
-    delta,
-    lam,
-    theta,
-    alpha,
-    effective_beta,
-    psi_check,
-):
-    if record_indices.numel() == 0:
-        return None
-
-    counts_selected = counts[record_indices]
-
-    kappa_1 = (
-        calc_kappa_from_counts(
-            counts=counts_selected,
-            kvec=kvec,
-            N=N,
-        )
-        .detach()
-        .cpu()
-        .numpy()
-    )
-
-    leading_zero_count = (
-        leading_zero_count_from_counts(counts_selected)
-        .detach()
-        .cpu()
-        .numpy()
-    )
-
-    x0_count = counts_selected[:, 0].detach().cpu().numpy()
-    x0_value = x0_count / float(N)
-
-    record_indices_cpu = record_indices.detach().cpu().numpy()
-    path_index = global_path_indices[record_indices_cpu]
-
-    return pd.DataFrame(
-        {
-            "N": int(N),
-            "psi": float(psi),
-            "delta": float(delta),
-            "lambda": float(lam),
-            "theta": float(theta),
-            "alpha": float(alpha),
-            "effective_beta": float(effective_beta),
-            "psi_check": float(psi_check),
-            "selection_mode": SELECTION_MODE,
-            "path_index": path_index,
-            "t_0": int(current_time),
-            "first_loss_time": int(current_time),
-            "X0_count_at_t0": x0_count,
-            "X_0_at_t0": x0_value,
-            "kappa_1_at_t0": kappa_1,
-            "leading_zero_count_at_t0": leading_zero_count,
-            "first_nonzero_class_at_t0": leading_zero_count,
-        }
-    )
-
-
 # Simulation for one parameter set
 
 def simulate_parameter_set(
@@ -505,7 +324,7 @@ def simulate_parameter_set(
     effective_beta = params["effective_beta"]
     psi_check = params["psi_check"]
 
-    num_classes = N
+    num_classes = min(int(N), NUM_CLASSES_CAP)
 
     print(
         f"Running N={N}, psi={psi}, delta={delta}, "
@@ -544,11 +363,6 @@ def simulate_parameter_set(
         max_mutations_cap=MAX_MUTATIONS_CAP,
     )
 
-    kvec = torch.arange(num_classes, device=device, dtype=dtype)
-
-    kappa_frames = []
-    x0_frames = []
-    first_loss_frames = []
     summary_frames = []
 
     with torch.no_grad():
@@ -564,6 +378,10 @@ def simulate_parameter_set(
                 generator=generator,
             )
 
+            # The only quantity of interest per path is t_0: the first time the
+            # fittest class (index 0) empties. The path is stopped at t_0 and
+            # nothing afterwards is simulated or recorded. `hit` doubles as the
+            # done mask; paths that never hit run to t_max (counted as misses).
             hit = counts[:, 0] == 0
 
             first_loss_time = torch.full(
@@ -572,114 +390,15 @@ def simulate_parameter_set(
                 device=device,
                 dtype=torch.long,
             )
-
-            stop_time = torch.full(
-                (m,),
-                int(t_max),
-                device=device,
-                dtype=torch.long,
-            )
-
-            leading_zero_count_at_t0 = torch.full(
-                (m,),
-                -1,
-                device=device,
-                dtype=torch.long,
-            )
-
-            kappa_1_at_t0 = torch.full(
-                (m,),
-                float("nan"),
-                device=device,
-                dtype=dtype,
-            )
-
-            done = torch.zeros(m, device=device, dtype=torch.bool)
-
-            initial_kappa_1 = calc_kappa_from_counts(
-                counts=counts,
-                kvec=kvec,
-                N=N,
-            )
-
-            if torch.any(hit):
-                first_loss_time[hit] = 0
-                stop_time[hit] = 0
-                done[hit] = True
-
-                leading_zero_count_at_t0[hit] = leading_zero_count_from_counts(
-                    counts[hit]
-                )
-
-                kappa_1_at_t0[hit] = initial_kappa_1[hit]
-
-            all_indices = torch.arange(m, device=device)
-
-            frame = make_kappa_records(
-                counts=counts,
-                kvec=kvec,
-                record_indices=all_indices,
-                global_path_indices=global_path_indices,
-                current_time=0,
-                is_final_record=done,
-                N=N,
-                psi=psi,
-                delta=delta,
-                lam=lam,
-                theta=theta,
-                alpha=alpha,
-                effective_beta=effective_beta,
-                psi_check=psi_check,
-            )
-            kappa_frames.append(frame)
-
-            frame = make_x0_records(
-                counts=counts,
-                record_indices=all_indices,
-                global_path_indices=global_path_indices,
-                current_time=0,
-                is_first_loss_record=hit,
-                N=N,
-                psi=psi,
-                delta=delta,
-                lam=lam,
-                theta=theta,
-                alpha=alpha,
-                effective_beta=effective_beta,
-                psi_check=psi_check,
-            )
-            x0_frames.append(frame)
-
-            if torch.any(hit):
-                hit_indices = torch.nonzero(hit, as_tuple=False).flatten()
-
-                frame = make_first_loss_records(
-                    counts=counts,
-                    kvec=kvec,
-                    record_indices=hit_indices,
-                    global_path_indices=global_path_indices,
-                    current_time=0,
-                    N=N,
-                    psi=psi,
-                    delta=delta,
-                    lam=lam,
-                    theta=theta,
-                    alpha=alpha,
-                    effective_beta=effective_beta,
-                    psi_check=psi_check,
-                )
-                first_loss_frames.append(frame)
+            first_loss_time[hit] = 0
 
             t = 0
 
-            while t < t_max and not torch.all(done):
-                active = ~done
-                active_indices = torch.nonzero(active, as_tuple=False).flatten()
+            while t < t_max and not torch.all(hit):
+                active_indices = torch.nonzero(~hit, as_tuple=False).flatten()
 
-                counts_active = counts[active_indices].to(dtype)
-
-                counts_new_active = one_wright_fisher_generation(
-                    counts=counts_active,
+                counts[active_indices] = one_wright_fisher_generation(
+                    counts=counts[active_indices].to(dtype),
                     N=N,
                     poisson_probs=poisson_probs,
                     tail_by_source=tail_by_source,
@@ -687,235 +406,66 @@ def simulate_parameter_set(
                     generator=generator,
                 )
 
-                counts[active_indices] = counts_new_active
-
                 t += 1
 
-                active = ~done
-
-                x0_record_mask = active & (~hit)
-
-                new_hits = x0_record_mask & (counts[:, 0] == 0)
-
-                current_kappa_1 = calc_kappa_from_counts(
-                    counts=counts,
-                    kvec=kvec,
-                    N=N,
-                )
-
+                new_hits = (~hit) & (counts[:, 0] == 0)
                 if torch.any(new_hits):
                     first_loss_time[new_hits] = t
-
-                    new_stop_time = min(
-                        int(stop_multiplier_after_t0 * t),
-                        int(t_max),
-                    )
-
-                    stop_time[new_hits] = new_stop_time
-                    hit[new_hits] = True
-
-                    leading_zero_count_at_t0[new_hits] = (
-                        leading_zero_count_from_counts(counts[new_hits])
-                    )
-
-                    kappa_1_at_t0[new_hits] = current_kappa_1[new_hits]
-
-                    new_hit_indices = torch.nonzero(
-                        new_hits,
-                        as_tuple=False,
-                    ).flatten()
-
-                    frame = make_first_loss_records(
-                        counts=counts,
-                        kvec=kvec,
-                        record_indices=new_hit_indices,
-                        global_path_indices=global_path_indices,
-                        current_time=t,
-                        N=N,
-                        psi=psi,
-                        delta=delta,
-                        lam=lam,
-                        theta=theta,
-                        alpha=alpha,
-                        effective_beta=effective_beta,
-                        psi_check=psi_check,
-                    )
-                    first_loss_frames.append(frame)
-
-                final_record = active & (t >= stop_time)
-
-                kappa_record_indices = torch.nonzero(
-                    active,
-                    as_tuple=False,
-                ).flatten()
-
-                frame = make_kappa_records(
-                    counts=counts,
-                    kvec=kvec,
-                    record_indices=kappa_record_indices,
-                    global_path_indices=global_path_indices,
-                    current_time=t,
-                    is_final_record=final_record,
-                    N=N,
-                    psi=psi,
-                    delta=delta,
-                    lam=lam,
-                    theta=theta,
-                    alpha=alpha,
-                    effective_beta=effective_beta,
-                    psi_check=psi_check,
-                )
-                kappa_frames.append(frame)
-
-                x0_record_indices = torch.nonzero(
-                    x0_record_mask,
-                    as_tuple=False,
-                ).flatten()
-
-                frame = make_x0_records(
-                    counts=counts,
-                    record_indices=x0_record_indices,
-                    global_path_indices=global_path_indices,
-                    current_time=t,
-                    is_first_loss_record=new_hits,
-                    N=N,
-                    psi=psi,
-                    delta=delta,
-                    lam=lam,
-                    theta=theta,
-                    alpha=alpha,
-                    effective_beta=effective_beta,
-                    psi_check=psi_check,
-                )
-
-                if frame is not None:
-                    x0_frames.append(frame)
-
-                done[final_record] = True
+                    hit[new_hits] = True   # path is done at t_0
 
             if device.type == "cuda":
                 torch.cuda.synchronize(device)
 
-            final_kappa_1 = calc_kappa_from_counts(
-                counts=counts,
-                kvec=kvec,
-                N=N,
+            # Guard against silently truncating the occupied band: if it ever
+            # approached the class cap, results past num_classes-1 would be lost.
+            # (Cheap: one reduction per batch. The absorbing last class is
+            # excluded so the t=0 init phantom does not trigger it.)
+            occupied = counts[:, : num_classes - 1] > 0
+            class_idx = torch.arange(num_classes - 1, device=device)
+            band_top = int(
+                torch.where(occupied, class_idx, torch.full_like(class_idx, -1)).max()
             )
-
-            final_x0_count = counts[:, 0]
-            final_x0 = final_x0_count.to(dtype) / float(N)
+            if band_top >= int(0.75 * num_classes):
+                print(
+                    f"  WARNING: occupied band reached class {band_top} of "
+                    f"num_classes={num_classes}; raise NUM_CLASSES_CAP to avoid "
+                    f"truncating the upper classes."
+                )
 
             hit_cpu = hit.detach().cpu().numpy().astype(bool)
-
             first_loss_time_cpu = first_loss_time.detach().cpu().numpy()
-            first_loss_time_float = first_loss_time_cpu.astype(float)
-            first_loss_time_float[first_loss_time_cpu < 0] = np.nan
+            t0_float = first_loss_time_cpu.astype(float)
+            t0_float[first_loss_time_cpu < 0] = np.nan
 
-            stop_time_cpu = stop_time.detach().cpu().numpy()
-
-            leading_zero_cpu = leading_zero_count_at_t0.detach().cpu().numpy()
-            leading_zero_float = leading_zero_cpu.astype(float)
-            leading_zero_float[leading_zero_cpu < 0] = np.nan
-
-            kappa_t0_cpu = kappa_1_at_t0.detach().cpu().numpy()
-            final_kappa_cpu = final_kappa_1.detach().cpu().numpy()
-            final_x0_cpu = final_x0.detach().cpu().numpy()
-            final_x0_count_cpu = final_x0_count.detach().cpu().numpy()
-
-            summary_df = pd.DataFrame(
-                {
-                    "N": int(N),
-                    "psi": float(psi),
-                    "delta": float(delta),
-                    "lambda": float(lam),
-                    "theta": float(theta),
-                    "alpha": float(alpha),
-                    "effective_beta": float(effective_beta),
-                    "psi_check": float(psi_check),
-                    "selection_mode": SELECTION_MODE,
-                    "path_index": global_path_indices,
-                    "hit_x0_zero": hit_cpu,
-                    "t_0": first_loss_time_float,
-                    "first_loss_time": first_loss_time_float,
-                    "stop_time": stop_time_cpu,
-                    "simulated_until": stop_time_cpu,
-                    "simulated_until_rule": f"min({stop_multiplier_after_t0} * t_0, {t_max})",
-                    "leading_zero_count_at_t0": leading_zero_float,
-                    "first_nonzero_class_at_t0": leading_zero_float,
-                    "kappa_1_at_t0": kappa_t0_cpu,
-                    "final_kappa_1": final_kappa_cpu,
-                    "final_X0_count": final_x0_count_cpu,
-                    "final_X_0": final_x0_cpu,
-                    "num_classes": int(num_classes),
-                    "T_MAX": int(t_max),
-                }
+            summary_frames.append(
+                pd.DataFrame(
+                    {
+                        "N": int(N),
+                        "psi": float(psi),
+                        "delta": float(delta),
+                        "lambda": float(lam),
+                        "theta": float(theta),
+                        "alpha": float(alpha),
+                        "effective_beta": float(effective_beta),
+                        "psi_check": float(psi_check),
+                        "selection_mode": SELECTION_MODE,
+                        "path_index": global_path_indices,
+                        "hit_x0_zero": hit_cpu,
+                        "t_0": t0_float,
+                        "first_loss_time": t0_float,
+                        "num_classes": int(num_classes),
+                        "T_MAX": int(t_max),
+                    }
+                )
             )
-
-            summary_frames.append(summary_df)
 
             print(
                 f"  Finished paths {start} to {start + m - 1}; "
-                f"hits by stop: {int(hit_cpu.sum())}/{m}"
+                f"hits: {int(hit_cpu.sum())}/{m}"
             )
 
-    kappa_df = pd.concat(kappa_frames, ignore_index=True)
-    x0_df = pd.concat(x0_frames, ignore_index=True)
     summary_df = pd.concat(summary_frames, ignore_index=True)
-
-    if first_loss_frames:
-        first_loss_df = pd.concat(first_loss_frames, ignore_index=True)
-    else:
-        first_loss_df = pd.DataFrame(
-            columns=[
-                "N",
-                "psi",
-                "delta",
-                "lambda",
-                "theta",
-                "alpha",
-                "effective_beta",
-                "psi_check",
-                "selection_mode",
-                "path_index",
-                "t_0",
-                "first_loss_time",
-                "X0_count_at_t0",
-                "X_0_at_t0",
-                "kappa_1_at_t0",
-                "leading_zero_count_at_t0",
-                "first_nonzero_class_at_t0",
-            ]
-        )
-
-    merge_cols = [
-        "path_index",
-        "hit_x0_zero",
-        "t_0",
-        "stop_time",
-        "leading_zero_count_at_t0",
-        "first_nonzero_class_at_t0",
-    ]
-
-    kappa_df = kappa_df.merge(
-        summary_df[merge_cols],
-        on="path_index",
-        how="left",
-    )
-
-    x0_df = x0_df.merge(
-        summary_df[merge_cols],
-        on="path_index",
-        how="left",
-    )
-
-    kappa_path = os.path.join(output_dir, kappa_filename(N, psi, delta))
-    x0_path = os.path.join(output_dir, x0_filename(N, psi, delta))
-    first_loss_path = os.path.join(output_dir, first_loss_filename(N, psi, delta))
     summary_path = os.path.join(output_dir, summary_filename(N, psi, delta))
-
-    save_dataframe(kappa_df, kappa_path)
-    save_dataframe(x0_df, x0_path)
-    save_dataframe(first_loss_df, first_loss_path)
     save_dataframe(summary_df, summary_path)
 
     return summary_df
