@@ -18,7 +18,7 @@ SEED = 22
 
 T_MAX = 1000
 
-OUTPUT_DIR = "ratchet_discrete_psi_delta_results"
+OUTPUT_DIR = "figures12"
 
 REQUIRE_CUDA = True
 TORCH_DTYPE = torch.float32
