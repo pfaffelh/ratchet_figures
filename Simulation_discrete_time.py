@@ -30,6 +30,13 @@ T_MAX = 1000000
 PROBE_ENABLED = True
 PROBE_RUNS = 8
 
+# Resume support. When True, a parameter set whose output CSV already exists in
+# OUTPUT_DIR is skipped (neither probed nor re-simulated) and its existing data
+# is reused for the combined summary. This lets an interrupted run be restarted
+# without recomputing finished sets or overwriting their results. Note: sets the
+# probe skipped (non-clicking) write no CSV, so they are re-probed on restart.
+SKIP_EXISTING = True
+
 OUTPUT_DIR = "figures12"
 
 REQUIRE_CUDA = True
@@ -614,6 +621,27 @@ def run_all_parameter_sets(
         psi = float(params["psi"])
         delta = float(params["delta"])
         set_seed = seed + run_index
+
+        if SKIP_EXISTING:
+            existing_path = os.path.join(
+                output_dir, summary_filename(N, psi, delta)
+            )
+
+            if os.path.exists(existing_path):
+                try:
+                    existing_df = pd.read_csv(existing_path)
+                except Exception as error:
+                    print(
+                        f"  Existing {os.path.basename(existing_path)} could "
+                        f"not be read ({error}); re-running this set."
+                    )
+                else:
+                    print(
+                        f"Skipping N={N}, psi={psi}, delta={delta}: output "
+                        f"already exists ({os.path.basename(existing_path)})."
+                    )
+                    all_summaries.append(existing_df)
+                    continue
 
         if PROBE_ENABLED:
             probe = probe_parameter_set(
