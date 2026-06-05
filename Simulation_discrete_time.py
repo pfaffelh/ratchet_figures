@@ -18,6 +18,18 @@ SEED = 22
 
 T_MAX = 1000000
 
+# CPU pre-screen (gate). Before launching the expensive full GPU run for a
+# parameter set, simulate PROBE_RUNS paths on the CPU and only proceed if ALL of
+# them click (the fittest class X_0 empties) within T_MAX. The analysis keeps a
+# parameter set only when 100% of paths click (MIN_FRAC_HIT=1.0 in make_figure /
+# make_table), so a single non-clicking probe path already rules the set out --
+# skipping it then avoids burning GPU time on a set that can never yield a data
+# point. The probe runs on the CPU with the same T_MAX as the real run, so
+# confirming a skip for a non-clicking set runs the probe to the full horizon.
+# Set PROBE_ENABLED = False to always run the full simulation.
+PROBE_ENABLED = True
+PROBE_RUNS = 8
+
 OUTPUT_DIR = "figures12"
 
 REQUIRE_CUDA = True
@@ -469,6 +481,97 @@ def simulate_parameter_set(
     return summary_df
 
 
+# CPU pre-screen
+
+def probe_parameter_set(N, psi, delta, probe_runs, t_max, seed, dtype):
+    """Cheap CPU gate for the full GPU run.
+
+    Simulate ``probe_runs`` paths on the CPU and report whether they all click
+    (the fittest class empties) within ``t_max``. Mirrors the inner loop of
+    simulate_parameter_set but records nothing and writes no files. Returns a
+    dict with:
+        valid     -- False if the parameter set is skipped (e.g. alpha >= 1)
+        all_click -- True iff every probe path clicked within t_max
+        n_hit     -- number of probe paths that clicked
+        t_reached -- generation at which the probe loop stopped
+        reason    -- only present when valid is False
+    """
+    device = torch.device("cpu")
+
+    params = parameters_from_psi_delta(N=N, psi=psi, delta=delta)
+    theta = params["theta"]
+    alpha = params["alpha"]
+    lam = params["lambda"]
+
+    num_classes = min(int(N), NUM_CLASSES_CAP)
+
+    try:
+        selection = build_selection_vector(
+            alpha=alpha,
+            num_classes=num_classes,
+            device=device,
+            dtype=dtype,
+        )
+    except ValueError as error:
+        return {"valid": False, "reason": str(error)}
+
+    generator = torch.Generator(device=device)
+    generator.manual_seed(seed)
+
+    init_probs = poisson_lumped_probs(
+        theta=theta,
+        num_classes=num_classes,
+        device=device,
+        dtype=dtype,
+    )
+
+    poisson_probs, tail_by_source = build_poisson_mutation_kernel(
+        lam=lam,
+        num_classes=num_classes,
+        device=device,
+        dtype=dtype,
+        tail_tol=MUTATION_TAIL_TOL,
+        max_mutations_cap=MAX_MUTATIONS_CAP,
+    )
+
+    with torch.no_grad():
+        probs0 = init_probs.unsqueeze(0).repeat(probe_runs, 1)
+        counts = torch_multinomial_counts_batch(
+            N=N,
+            probs=probs0,
+            generator=generator,
+        )
+
+        # Same stop-at-t_0 logic as the full run: clicked paths are frozen
+        # (excluded from the active set) so their empty class 0 stays empty.
+        hit = counts[:, 0] == 0
+        t = 0
+
+        while t < t_max and not torch.all(hit):
+            active_indices = torch.nonzero(~hit, as_tuple=False).flatten()
+
+            counts[active_indices] = one_wright_fisher_generation(
+                counts=counts[active_indices].to(dtype),
+                N=N,
+                poisson_probs=poisson_probs,
+                tail_by_source=tail_by_source,
+                selection=selection,
+                generator=generator,
+            )
+
+            t += 1
+            hit = hit | (counts[:, 0] == 0)
+
+    n_hit = int(hit.sum())
+
+    return {
+        "valid": True,
+        "all_click": bool(n_hit == probe_runs),
+        "n_hit": n_hit,
+        "t_reached": int(t),
+    }
+
+
 # Run all parameter sets
 
 def run_all_parameter_sets(
@@ -507,15 +610,51 @@ def run_all_parameter_sets(
     all_summaries = []
 
     for run_index, params in enumerate(parameter_sets):
+        N = int(params["N"])
+        psi = float(params["psi"])
+        delta = float(params["delta"])
+        set_seed = seed + run_index
+
+        if PROBE_ENABLED:
+            probe = probe_parameter_set(
+                N=N,
+                psi=psi,
+                delta=delta,
+                probe_runs=PROBE_RUNS,
+                t_max=t_max,
+                seed=set_seed,
+                dtype=dtype,
+            )
+
+            if not probe["valid"]:
+                print(
+                    f"Skipping N={N}, psi={psi}, delta={delta}: {probe['reason']}"
+                )
+                continue
+
+            if not probe["all_click"]:
+                print(
+                    f"CPU probe: N={N}, psi={psi}, delta={delta} -> only "
+                    f"{probe['n_hit']}/{PROBE_RUNS} paths clicked within t_max "
+                    f"(reached t={probe['t_reached']}); skipping full run."
+                )
+                continue
+
+            print(
+                f"CPU probe: N={N}, psi={psi}, delta={delta} -> all "
+                f"{PROBE_RUNS}/{PROBE_RUNS} clicked (max t={probe['t_reached']}); "
+                f"launching full GPU simulation."
+            )
+
         summary_df = simulate_parameter_set(
-            N=int(params["N"]),
-            psi=float(params["psi"]),
-            delta=float(params["delta"]),
+            N=N,
+            psi=psi,
+            delta=delta,
             runs=runs,
             batch_size=batch_size,
             t_max=t_max,
             output_dir=output_dir,
-            seed=seed + run_index,
+            seed=set_seed,
             device=device,
             dtype=dtype,
         )
