@@ -17,15 +17,16 @@ import os
 import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)  # repo root; data.js and the table live here
 
 N_SEL = 10000
-MODE = "exponential"
+MODE = "one_minus_alpha_power"
 MIN_FRAC_HIT = 1.0          # show a cell only if 100% of paths clicked
-OUT = os.path.join(HERE, "table_N10000_exponential.tex")
+OUT = os.path.join(ROOT, "table_N10000.tex")
 
 
 def load_data():
-    with open(os.path.join(HERE, "data.js")) as fh:
+    with open(os.path.join(ROOT, "data.js")) as fh:
         src = fh.read()
     src = re.sub(r"^//.*\n", "", src)
     src = src.replace("const RATCHET_DATA = ", "").rstrip().rstrip(";")
@@ -97,7 +98,7 @@ def main():
 \begin{{table}}[t]
 \centering
 \caption{{Simulated values for population size $N={N_SEL}$, selection mode
-\texttt{{{MODE}}} (no restriction on $\theta$, $\alpha$, $\psi$).
+\texttt{{{MODE.replace("_", r"\_")}}} (no restriction on $\theta$, $\alpha$, $\psi$).
 Rows: $\psi$ (each a block of five rows, one per quantity named in the label
 column); columns: $\delta$. ``--'' marks parameter sets with fewer than
 {int(MIN_FRAC_HIT*100)}\% clicking paths.}}

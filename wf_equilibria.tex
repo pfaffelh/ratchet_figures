@@ -9,8 +9,8 @@
 \section*{Two Wright--Fisher updates and their stationary marginals}
 
 \subsection*{Setup}
-Each individual carries a mutation count $k\in\NN$. We use exponential
-selection $w_k = e^{-\alpha k}$ ($\alpha>0$) and Poisson mutation at rate
+Each individual carries a mutation count $k\in\NN$. We use geometric
+selection $w_k = (1-\alpha)^k$ ($0<\alpha<1$) and Poisson mutation at rate
 $\lambda\ge 0$ (per individual, per generation), so the new mutation count of an
 offspring is the parent's class plus an independent $\Poi(\lambda)$.
 
@@ -37,14 +37,16 @@ return to fluctuations at the end.
 The reason the calculation is short is that both operators preserve the
 Poisson family:
 \begin{align}
-  S\bigl(\Poi(\nu)\bigr)         &\;=\;\Poi\bigl(\nu\,e^{-\alpha}\bigr),
+  S\bigl(\Poi(\nu)\bigr)         &\;=\;\Poi\bigl(\nu\,(1-\alpha)\bigr),
   \label{eq:sel}\\
   M_\lambda\bigl(\Poi(\nu)\bigr)    &\;=\;\Poi\bigl(\nu+\lambda\bigr).
   \label{eq:mut}
 \end{align}
 (Eq.~\eqref{eq:sel} follows from
-$w_k\,\Poi(\nu;k)=e^{-\alpha k}e^{-\nu}\nu^k/k!\propto(\nu e^{-\alpha})^k/k!$,
-i.e.~exponentially tilting Poisson rescales its parameter.
+$w_k\,\Poi(\nu;k)=(1-\alpha)^k e^{-\nu}\nu^k/k!\propto(\nu(1-\alpha))^k/k!$,
+i.e.~$w_k=(1-\alpha)^k$ is an exponential tilt of Poisson and merely rescales
+its parameter by $1-\alpha$ (equivalently, exponential selection with
+$\alpha'=-\ln(1-\alpha)$).
 Eq.~\eqref{eq:mut} is the standard sum-of-independent-Poissons identity.)
 
 \subsection*{Stationary Poisson marginals}
@@ -55,13 +57,13 @@ fixed points of $T_A,T_B$.
 By \eqref{eq:sel} and \eqref{eq:mut},
 \[
   T_A\bigl(\Poi(\theta_{\mathrm{eq}})\bigr)
-  = M_\mu\bigl(\Poi(\theta_{\mathrm{eq}}e^{-\alpha})\bigr)
-  = \Poi\bigl(\theta_{\mathrm{eq}}\,e^{-\alpha}+\mu\bigr).
+  = M_\mu\bigl(\Poi(\theta_{\mathrm{eq}}(1-\alpha))\bigr)
+  = \Poi\bigl(\theta_{\mathrm{eq}}\,(1-\alpha)+\mu\bigr).
 \]
 The fixed-point equation
-$\theta_{\mathrm{eq}}=\theta_{\mathrm{eq}}\,e^{-\alpha}+\mu$ gives
+$\theta_{\mathrm{eq}}=\theta_{\mathrm{eq}}\,(1-\alpha)+\mu$ gives
 \begin{equation}\label{eq:thetaA}
-  \boxed{\;\theta_{\mathrm{eq}}^{(A)}\;=\;\frac{\mu}{1-e^{-\alpha}}\;.}
+  \boxed{\;\theta_{\mathrm{eq}}^{(A)}\;=\;\frac{\mu}{\alpha}\;.}
 \end{equation}
 
 \paragraph{Model B (mut $\to$ sel).}
@@ -69,21 +71,20 @@ Now
 \[
   T_B\bigl(\Poi(\theta_{\mathrm{eq}})\bigr)
   = S\bigl(\Poi(\theta_{\mathrm{eq}}+\lambda)\bigr)
-  = \Poi\bigl((\theta_{\mathrm{eq}}+\lambda)\,e^{-\alpha}\bigr),
+  = \Poi\bigl((\theta_{\mathrm{eq}}+\lambda)\,(1-\alpha)\bigr),
 \]
-so $\theta_{\mathrm{eq}}=(\theta_{\mathrm{eq}}+\lambda)e^{-\alpha}$ yields
+so $\theta_{\mathrm{eq}}=(\theta_{\mathrm{eq}}+\lambda)(1-\alpha)$ yields
+$\theta_{\mathrm{eq}}\,\alpha=\lambda(1-\alpha)$ and hence
 \begin{equation}\label{eq:thetaB}
   \boxed{\;\theta_{\mathrm{eq}}^{(B)}
-        \;=\;\frac{\lambda\,e^{-\alpha}}{1-e^{-\alpha}}
-        \;=\;\frac{\lambda}{e^{\alpha}-1}\;.}
+        \;=\;\frac{\lambda\,(1-\alpha)}{\alpha}\;.}
 \end{equation}
 
 For small $\alpha$, both formulas reduce to $\theta_{\mathrm{eq}}\approx\lambda/\alpha$, but for
 finite $\alpha$ they differ; in particular
 \[
   \frac{\theta_{\mathrm{eq}}^{(B)}}{\theta_{\mathrm{eq}}^{(A)}}
-  \;=\;\frac{\lambda}{\mu}\cdot\frac{1-e^{-\alpha}}{e^{\alpha}-1}
-  \;=\;\frac{\lambda}{\mu}\cdot e^{-\alpha}.
+  \;=\;\frac{\lambda}{\mu}\cdot(1-\alpha).
 \]
 
 \end{document}

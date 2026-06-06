@@ -1,0 +1,18 @@
+# Python dependencies for the Muller's ratchet simulations and figures.
+# Tested with Python 3.x and the versions pinned below.
+#
+#   pip install -r requirements.txt
+#
+# Note on PyTorch: the simulations (Simulation_discrete_time*.py) run on a GPU
+# when available. The pinned 2.5.1 was built against CUDA 12.4 (the +cu124
+# wheel). For a CUDA build install from the PyTorch index, e.g. for CUDA 12.4:
+#
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu124
+#
+# Plain `pip install -r requirements.txt` installs the default PyPI wheel, which
+# is sufficient for the plotting scripts (Plots/) but may be CPU-only.
+
+numpy==1.26.4
+pandas==2.1.4
+matplotlib==3.10.1
+torch==2.5.1
