@@ -63,11 +63,6 @@
     </fieldset>
 
     <fieldset>
-      <legend>selection mode</legend>
-      <select id="modesel"></select>
-    </fieldset>
-
-    <fieldset>
       <legend>fixed: ψ (show curves)</legend>
       <div class="psi-grid checks" id="psiboxes"></div>
     </fieldset>
@@ -151,7 +146,7 @@ function selectedN() {
 }
 
 function selectedMode() {
-  return $("modesel").value;
+  return RATCHET_DATA.selection_modes[0];
 }
 
 // Persistent ψ selection (so toggling N / selection-mode does not reset the
@@ -287,6 +282,7 @@ function render() {
       for (let i = 0; i < t.x.length; i++) {
         const x = t.x[i], y = t.y[i];
         if (!Number.isFinite(x) || !Number.isFinite(y) || x < xlo || x > xhi) continue;
+        if (yIsLog && y <= 0) continue;   // not drawable on a log axis; must not drag the range
         const e = errArr && Number.isFinite(errArr[i]) ? errArr[i] : 0;
         mlo = Math.min(mlo, y); mhi = Math.max(mhi, y);
         // for log y, a negative lower whisker can't be shown; clamp it out below
@@ -338,14 +334,6 @@ RATCHET_DATA.N_values.forEach(N => {
   nSel.appendChild(opt);
 });
 
-// selection_mode selector populated from data
-const modeSel = $("modesel");
-RATCHET_DATA.selection_modes.forEach(m => {
-  const opt = document.createElement("option");
-  opt.value = m; opt.textContent = m;
-  modeSel.appendChild(opt);
-});
-
 buildPsiBoxes(); // depends on selected N and mode; (re-)attaches its listeners
 
 // sensible default log/linear per chosen axis, also updated on change
@@ -356,7 +344,6 @@ syncXLog(); syncYLog();
 $("xsel").addEventListener("change", () => { syncXLog(); render(); });
 $("ysel").addEventListener("change", () => { syncYLog(); render(); });
 nSel.addEventListener("change", () => { buildPsiBoxes(); render(); });
-modeSel.addEventListener("change", () => { buildPsiBoxes(); render(); });
 ["xlog", "ylog", "errbars", "theory"].forEach(id => $(id).addEventListener("change", render));
 ["xmin", "xmax", "thetamin", "alphamax"].forEach(id => $(id).addEventListener("input", render));
 
