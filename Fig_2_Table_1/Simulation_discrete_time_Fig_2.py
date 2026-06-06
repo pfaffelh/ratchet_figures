@@ -21,7 +21,7 @@ T_MAX = 1000000
 # CPU pre-screen (gate). Before launching the expensive full GPU run for a
 # parameter set, simulate PROBE_RUNS paths on the CPU and only proceed if ALL of
 # them click (the fittest class X_0 empties) within T_MAX. The analysis keeps a
-# parameter set only when 100% of paths click (MIN_FRAC_HIT=1.0 in make_figure /
+# parameter set only when 100% of paths click (MIN_FRAC_HIT=1.0 in make_figure_A /
 # make_table), so a single non-clicking probe path already rules the set out --
 # skipping it then avoids burning GPU time on a set that can never yield a data
 # point. The probe runs on the CPU with the same T_MAX as the real run, so
