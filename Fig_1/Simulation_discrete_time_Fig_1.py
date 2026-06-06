@@ -25,9 +25,7 @@ SELECTION_MODES = [
     "one_minus_alpha_power",
 ]
 
-OUTPUT_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "Fig_1"
-)
+OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 REQUIRE_CUDA = True
 TORCH_DTYPE = torch.float32

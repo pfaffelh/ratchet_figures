@@ -37,9 +37,7 @@ PROBE_RUNS = 8
 # probe skipped (non-clicking) write no CSV, so they are re-probed on restart.
 SKIP_EXISTING = True
 
-OUTPUT_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "Fig_2_Table_1"
-)
+OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 REQUIRE_CUDA = True
 TORCH_DTYPE = torch.float32
