@@ -27,14 +27,14 @@ rate of Muller's ratchet. We give a partial answer by calculating $\mathbf E\lef
 ## Content
 This repository contains 
 
-Simulation_discrete_time.py: Simulates the discrete time version of the ratchet on a GPU (if available). We get $m_1, X_0(t), Cov(X_0(t), m1_(t))$ and the trajectory of the connection between $m_1(t)$ and $X_0(t)$. <br>
-Simulation_discrete_time_Fig_1.py: Simulates the data for Figure 1. <br>
-Plots:  Code to create the plots. <br>
-ratchet_discrete_psi_approx_delta_stop_at_t0_results_large_N_different_psi : output of the python files <br>
-ratchet_discrete_psi_delta_results: <br>
-ratchet_discrete_psi_delta_stop_at_t0_results: output of the python files <br>
-ratchet_discrete_psi_delta_stop_at_t0_results_large_N: output of the python files <br>
-ratchet_discrete_psi_delta_stop_at_t0_results_large_N_different_psi: output of the python files <br>
+`scripts/`: the general simulation code. <br>
+&nbsp;&nbsp;`Simulation_discrete_time.py`: Simulates the discrete-time ratchet on a GPU (if available) and records the first-loss time $t_0$ per path. Writes its output to `Fig_2_Table_1/`. <br>
+&nbsp;&nbsp;`Simulation_discrete_time_Fig_1.py`: Simulates the data for Figure 1 (full per-generation timeseries of $m_1, X_0(t), \dots$). Writes its output to `Fig_1/`. <br>
+`Fig_1/`: data for Figure 1 plus `Plot_Figure_1.py`, which compares the simulated $m_1$ and $X_k$ against the analytic theory up to $\mathcal O(1/N^2)$. <br>
+`Fig_2_Table_1/`: the simulation summaries plus the scripts that build Figure 2, Table 1 and the interactive web view: `make_figure.py`, `make_figure_2.py`, `make_table.py` and `build_data.py` (which writes `data.js`). <br>
+`theory/`: LaTeX notes (`neutral.tex`, `wf_equilibria.tex`). <br>
+
+The generated figures (`figure_*.pdf/png`), the table (`table_N10000.*`) and `data.js` are written to the repository root; `index.html` renders `data.js` as the interactive plot. <br>
 
 
 ### Funding Acknowledgement

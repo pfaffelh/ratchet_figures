@@ -10,5 +10,8 @@ __pycache__/
 .tex_build/
 
 # transient run artifacts
-Plots/figures12/run.pid
-Plots/figures12/run.log
+Fig_2_Table_1/run.pid
+Fig_2_Table_1/run.log
+
+# Per-run Fig_1 timeseries: ~0.5 GB, regenerable via scripts/Simulation_discrete_time_Fig_1.py
+Fig_1/timeseries_by_run_*.csv

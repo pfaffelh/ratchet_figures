@@ -1,3 +1,0 @@
-N,psi,delta,lambda,theta,alpha,effective_beta,psi_check,selection_mode,path_index,hit_x0_zero,t_0,first_loss_time,stop_time,simulated_until,simulated_until_rule,kappa_1_at_t0,kappa_1_at_stop,X0_count_at_stop,X_0_at_stop,leading_zero_count_at_t0,first_nonzero_class_at_t0,num_classes,T_MAX
-100000,1.0,0.1,3.640706700105901e-05,1.151292546497023,3.1622776601683795e-05,0.8877628613929035,0.9999999999999999,exponential,0,True,149026.0,149026.0,149026,149026,"min(t_0, 10000000)",2.19122,2.19122,0,0.0,1.0,1.0,100000,10000000
-100000,1.0,0.9,3.2766360300953092,10.361632918473205,0.31622776601683783,-0.10308564049496136,0.9999999999999999,exponential,0,True,88.0,88.0,88,88,"min(t_0, 10000000)",8.83219,8.83219,0,0.0,1.0,1.0,100000,10000000
