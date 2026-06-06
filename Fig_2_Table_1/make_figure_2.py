@@ -24,8 +24,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)  # repo root; generated figures live here
+HERE = os.path.dirname(os.path.abspath(__file__))  # data and generated figures live here
 DATA_DIRS = [
     HERE,
 ]
@@ -163,8 +162,8 @@ def main():
               loc="upper center", bbox_to_anchor=(0.5, -0.16),
               ncol=len(labels))
 
-    pdf = os.path.join(ROOT, OUT_BASENAME + ".pdf")
-    png = os.path.join(ROOT, OUT_BASENAME + ".png")
+    pdf = os.path.join(HERE, OUT_BASENAME + ".pdf")
+    png = os.path.join(HERE, OUT_BASENAME + ".png")
     fig.savefig(pdf, bbox_inches="tight")
     fig.savefig(png, dpi=200, bbox_inches="tight")
     print("wrote:", os.path.basename(pdf), "and", os.path.basename(png))

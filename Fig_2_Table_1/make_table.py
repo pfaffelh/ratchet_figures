@@ -16,13 +16,13 @@ import math
 import os
 import re
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)  # repo root; data.js and the table live here
+HERE = os.path.dirname(os.path.abspath(__file__))  # data and the generated table live here
+ROOT = os.path.dirname(HERE)  # repo root; data.js lives here (served by index.html)
 
 N_SEL = 10000
 MODE = "one_minus_alpha_power"
 MIN_FRAC_HIT = 1.0          # show a cell only if 100% of paths clicked
-OUT = os.path.join(ROOT, "table_N10000.tex")
+OUT = os.path.join(HERE, "table_N10000.tex")
 
 
 def load_data():

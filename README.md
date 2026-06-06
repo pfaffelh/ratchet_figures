@@ -34,7 +34,7 @@ This repository contains
 `Fig_2_Table_1/`: the simulation summaries plus the scripts that build Figure 2, Table 1 and the interactive web view: `make_figure.py`, `make_figure_2.py`, `make_table.py` and `build_data.py` (which writes `data.js`). <br>
 `theory/`: LaTeX notes (`neutral.tex`, `wf_equilibria.tex`). <br>
 
-The generated figures (`figure_*.pdf/png`), the table (`table_N10000.*`) and `data.js` are written to the repository root; `index.html` renders `data.js` as the interactive plot. <br>
+The generated figures (`figure_*.pdf/png`) and the table (`table_N10000.*`) are written into `Fig_2_Table_1/`; `Plot_Figure_1.py` writes its plots into `Fig_1/`. Only `data.js` is written to the repository root, where `index.html` renders it as the interactive plot. <br>
 
 
 ### Funding Acknowledgement
