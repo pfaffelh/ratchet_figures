@@ -98,7 +98,7 @@ def main():
 \begin{{table}}[t]
 \centering
 \caption{{Simulated values for population size $N={N_SEL}$, selection mode
-\texttt{{{MODE}}} (no restriction on $\theta$, $\alpha$, $\psi$).
+\texttt{{{MODE.replace("_", r"\_")}}} (no restriction on $\theta$, $\alpha$, $\psi$).
 Rows: $\psi$ (each a block of five rows, one per quantity named in the label
 column); columns: $\delta$. ``--'' marks parameter sets with fewer than
 {int(MIN_FRAC_HIT*100)}\% clicking paths.}}
