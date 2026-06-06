@@ -38,7 +38,7 @@ def fnum(s):
 
 
 # -------- Neutral-diffusion theory: E_{x0}[tau_0] for dX = -lam X dt + sqrt(X(1-X)) dW.
-# See neutral.tex for the derivation.
+# See theory/neutral.tex for the derivation.
 
 def _S_value(y, two_lam):
     """Scale function S(y) = int_0^y (1-w)^{-2 lam} dw."""
@@ -78,7 +78,7 @@ def _simpson(f, a, b, n):
 def t0_neutral_diffusion(lam, x0, N=1, n=4000):
     """Mean hitting time of 0 for dX = -lam X dt + sqrt(X(1-X)/N) dW, starting at x0.
 
-    Uses the closed-form (see neutral.tex)
+    Uses the closed-form (see theory/neutral.tex)
         u(x) = int_0^x S(y) m(y) dy + S(x) * int_x^1 m(y) dy,
     with S' = (1-x)^{-2 N lam}, m(y) = 2N (1-y)^{2 N lam - 1}/y, and the
     substitution t = (1-y)^{2 N lam} for the second integral.
