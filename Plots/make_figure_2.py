@@ -25,20 +25,19 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)  # repo root; generated figures live here
 DATA_DIRS = [
-    os.path.join(HERE, "ratchet_discrete_psi_delta_stop_at_t0_results"),
-    os.path.join(HERE, "ratchet_discrete_psi_delta_stop_at_t0_results_large_N_different_psi"),
-    os.path.join(HERE, "ratchet_discrete_psi_approx_delta_stop_at_t0_results_large_N_different_psi"),
+    os.path.join(HERE, "figures12"),
 ]
 
 # ----- selection (second figure: only psi 2/5/10, log y-axis) ----------------
 N_SEL = 10000
-MODE = "exponential"
+MODE = "one_minus_alpha_power"
 PSI_SET = {2.0, 5.0, 10.0}   # show only these psi
 THETA_MIN = 1.0         # theta > THETA_MIN
 ALPHA_MAX = 0.2         # alpha < ALPHA_MAX
 MIN_FRAC_HIT = 1.0      # keep only points where 100% of paths clicked
-OUT_BASENAME = "figure_Nalpha_alphat0_logtheta_N10000_exponential_psi2_5_10_logy"
+OUT_BASENAME = "figure_Nalpha_alphat0_logtheta_N10000_psi2_5_10_logy"
 
 # Plotly PALETTE, indexed by position of psi in sorted psi_values
 PALETTE = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd",
@@ -164,8 +163,8 @@ def main():
               loc="upper center", bbox_to_anchor=(0.5, -0.16),
               ncol=len(labels))
 
-    pdf = os.path.join(HERE, OUT_BASENAME + ".pdf")
-    png = os.path.join(HERE, OUT_BASENAME + ".png")
+    pdf = os.path.join(ROOT, OUT_BASENAME + ".pdf")
+    png = os.path.join(ROOT, OUT_BASENAME + ".png")
     fig.savefig(pdf, bbox_inches="tight")
     fig.savefig(png, dpi=200, bbox_inches="tight")
     print("wrote:", os.path.basename(pdf), "and", os.path.basename(png))

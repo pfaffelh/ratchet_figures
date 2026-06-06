@@ -8,3 +8,7 @@ __pycache__/
 *.fls
 *.synctex.gz
 .tex_build/
+
+# transient run artifacts
+Plots/figures12/run.pid
+Plots/figures12/run.log
