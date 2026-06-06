@@ -1,0 +1,23 @@
+{
+  "title": "A semigroup approach towards the rate of Muller's ratchet (code and data)",
+  "description": "Code, simulation data and figures for the paper \"A semigroup approach towards the rate of Muller's ratchet\" by C. S. Heinzel, P. Pfaffelhuber and A. Wakolbinger. An interactive version of Figure 2 / Table 1 is available at https://pfaffelh.github.io/ratchet_figures/ .",
+  "upload_type": "software",
+  "creators": [
+    { "name": "Heinzel, C. S." },
+    { "name": "Pfaffelhuber, P." },
+    { "name": "Wakolbinger, A." }
+  ],
+  "keywords": [
+    "Muller's ratchet",
+    "Fleming-Viot process",
+    "Wright-Fisher",
+    "population genetics"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://pfaffelh.github.io/ratchet_figures/",
+      "relation": "isSupplementedBy",
+      "scheme": "url"
+    }
+  ]
+}
