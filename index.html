@@ -30,10 +30,10 @@
 <body>
 <header>
   <h1>Muller's ratchet — first-loss time t<sub>0</sub></h1>
-  <p>Each marker is one (ψ, δ) parameter set for the chosen N and selection mode.
+  <p>Each marker is one (ψ, δ) parameter set for the chosen N.
      Simulated y-values are computed <b>per path, then averaged</b>
-     (mean ± SD over paths with finite t<sub>0</sub> &gt; 0; sets with &lt;90%
-     clicking paths are hidden). Dashed lines are theory curves (no averaging,
+     (mean ± SD over paths with finite t<sub>0</sub> &gt; 0; only sets where
+     100% of paths clicked are shown). Dashed lines are theory curves (no averaging,
      drawn over all δ). Hover a point for ψ, δ, α, λ, θ, N·e^(−θ).</p>
 </header>
 
@@ -99,7 +99,7 @@
 
 <script>
 const PALETTE = ["#1f77b4","#d62728","#2ca02c","#9467bd","#ff7f0e","#17becf","#8c564b","#e377c2"];
-const MIN_FRAC_HIT = 0.9;  // hide simulated points with < 90% clicking paths
+const MIN_FRAC_HIT = 1.0;  // keep only points where 100% of paths clicked (matches make_figure.py)
 
 // x-axis choices: parameter-space quantities (constant within a (psi,delta) set)
 const X_OPTIONS = {
