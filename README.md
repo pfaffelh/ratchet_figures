@@ -1,3 +1,6 @@
+This is the code repository for the paper *"A semigroup approach towards the rate
+of Muller's ratchet"* by C. S. Heinzel, P. Pfaffelhuber and A. Wakolbinger.
+
 ## Background
 
 We consider a Fleming-Viot process with type space $\mathbb{N}_0$, which is the solution of the system of SDEs
