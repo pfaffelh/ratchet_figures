@@ -3,12 +3,12 @@
 
 For one fixed configuration this reproduces the same filter / transform pipeline
 the web tool uses, but shows the *full per-path distribution* of
-y = alpha * t_0 / log(theta) as one violin per (psi, delta) point (instead of
+y = s * t_0 / log(u_div_s) as one violin per (psi, delta) point (instead of
 mean +/- SD error bars). Those per-path samples are not in data.js (which only
 stores mean/std), so we read the raw summary_*.csv files directly and apply the
 same grouping/filtering as build_data.py + index.html.
 
-x: N*alpha (log)   y: alpha*t_0/log(theta) (linear)
+x: N*s (log)   y: s*t_0/log(u_div_s) (linear)
 
 Fonts are enlarged so the figure stays legible at half the width of an A4 page.
 """
@@ -29,12 +29,12 @@ DATA_DIRS = [
 
 # ----- selection (matches the requested on-screen state) ---------------------
 N_SEL = 10000
-MODE = "one_minus_alpha_power"
+MODE = "one_minus_s_power"
 PSI_MAX = 2.0            # psi <= 2
-THETA_MIN = 1.0         # theta > THETA_MIN
-ALPHA_MAX = 0.2         # alpha < ALPHA_MAX
+U_DIV_S_MIN = 1.0         # u_div_s > U_DIV_S_MIN
+S_MAX = 0.2         # s < S_MAX
 MIN_FRAC_HIT = 1.0      # keep only points where 100% of paths clicked
-OUT_BASENAME = "figure_Nalpha_alphat0_logtheta_N10000"
+OUT_BASENAME = "figure_Ns_st0_logu_div_s_N10000"
 
 # Plotly PALETTE, indexed by position of psi in sorted psi_values
 PALETTE = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd",
@@ -69,7 +69,7 @@ def load_groups():
                         g = groups[key] = {
                             "N": int(float(row["N"])), "psi": float(row["psi"]),
                             "delta": float(row["delta"]), "mode": mode,
-                            "alpha": float(row["alpha"]), "theta": float(row["theta"]),
+                            "s": float(row["s"]), "u_div_s": float(row["u_div_s"]),
                             "n_total": 0, "n_hit": 0, "t0": [],
                         }
                     g["n_total"] += 1
@@ -88,7 +88,7 @@ def main():
 
     def keep(g):
         return (g["N"] == N_SEL and g["mode"] == MODE and g["psi"] <= PSI_MAX
-                and g["theta"] > THETA_MIN and g["alpha"] < ALPHA_MAX
+                and g["u_div_s"] > U_DIV_S_MIN and g["s"] < S_MAX
                 and g["n_total"] and g["n_hit"] / g["n_total"] >= MIN_FRAC_HIT
                 and len(g["t0"]) > 0)
 
@@ -101,15 +101,15 @@ def main():
     })
     fig, ax = plt.subplots(figsize=(6.4 * 1.3 * 1.3, 5.0 * 1.3))
 
-    # one violin per (psi, delta) point, positioned at log10(N*alpha);
+    # one violin per (psi, delta) point, positioned at log10(N*s);
     # collect per-psi means to connect them with a line
     for psi in psis:
         gs = sorted((g for g in sel if g["psi"] == psi),
-                    key=lambda g: g["N"] * g["alpha"])
+                    key=lambda g: g["N"] * g["s"])
         mean_pts = []
         for g in gs:
-            ys = [g["alpha"] * t0 / math.log(g["theta"]) for t0 in g["t0"]]
-            pos = math.log10(g["N"] * g["alpha"])
+            ys = [g["s"] * t0 / math.log(g["u_div_s"]) for t0 in g["t0"]]
+            pos = math.log10(g["N"] * g["s"])
             mean_pts.append((pos, sum(ys) / len(ys)))
             parts = ax.violinplot([ys], positions=[pos], widths=0.06,
                                   showmeans=True, showextrema=False)
@@ -125,13 +125,13 @@ def main():
             ax.plot([x for x, _ in mean_pts], [y for _, y in mean_pts],
                     color=psi_color[psi], lw=2, zorder=5)
 
-    # theory curve (dashed): alpha*(log theta/alpha)/log theta == 1 for all points
-    xs_th = sorted(math.log10(g["N"] * g["alpha"]) for g in sel)
+    # theory curve (dashed): s*(log u_div_s/s)/log u_div_s == 1 for all points
+    xs_th = sorted(math.log10(g["N"] * g["s"]) for g in sel)
     if xs_th:
         ax.plot([xs_th[0], xs_th[-1]], [1, 1], ls="--", lw=2, color="0.4")
 
-    ax.set_xlabel(r"$N\,\alpha$")
-    ax.set_ylabel(r"$\alpha\, t_0 / \log\theta$")
+    ax.set_xlabel(r"$N\,s$")
+    ax.set_ylabel(r"$s\, t_0 / \log(u/s)$")
     ax.set_ylim(0, 15)   # clip the long upper tails
 
     # log10 positions -> power-of-ten tick labels; tighten x to the data
@@ -145,7 +145,7 @@ def main():
                for psi in psis]
     labels = [f"ψ={psi:g}" for psi in psis]
     handles.append(Line2D([0], [0], color="0.4", lw=2, ls="--"))
-    labels.append(r"$\frac{\log\theta}{\alpha}$")
+    labels.append(r"$\frac{\log(u/s)}{s}$")
     ax.legend(handles, labels, frameon=False,
               loc="upper center", bbox_to_anchor=(0.5, -0.16),
               ncol=len(labels))

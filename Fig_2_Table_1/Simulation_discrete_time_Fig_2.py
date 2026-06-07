@@ -42,16 +42,16 @@ OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 REQUIRE_CUDA = True
 TORCH_DTYPE = torch.float32
 
-#  "exponential" fitness =  exp(-\alpha k).
-#  "one_minus_alpha_power": fitness =  (1-alpha)^k.
-SELECTION_MODE = "one_minus_alpha_power"
+#  "exponential" fitness =  exp(-s k).
+#  "one_minus_s_power": fitness =  (1-s)^k.
+SELECTION_MODE = "one_minus_s_power"
 
 MUTATION_TAIL_TOL = 1e-12
 MAX_MUTATIONS_CAP = 250
 
 # Number of mutation classes to track. The occupied band in Muller's ratchet
 # stays narrow: validated max k_max = 43 across all 51 valid parameter sets at
-# runs=1000, T_MAX=1000 (selection one_minus_alpha_power). A cap of 256 keeps a
+# runs=1000, T_MAX=1000 (selection one_minus_s_power). A cap of 256 keeps a
 # ~5.8x safety margin while making the per-generation multinomial far cheaper
 # than tracking all N classes. The last class is an absorbing tail bucket, so
 # keep this well above any band you expect; simulate_parameter_set prints a
@@ -95,18 +95,18 @@ def get_torch_device(require_cuda=True):
 # Parameter formulas
 
 def parameters_from_psi_delta(N, psi, delta):
-    theta = delta * math.log(N)
-    alpha = psi * math.exp(theta) / N
-    lam = alpha * theta
+    u_div_s = delta * math.log(N)
+    s = psi * math.exp(u_div_s) / N
+    u = s * u_div_s
 
-    effective_beta = -math.log(lam) / math.log(N)
+    effective_beta = -math.log(u) / math.log(N)
 
-    psi_check = N * alpha * math.exp(-theta)
+    psi_check = N * s * math.exp(-u_div_s)
 
     return {
-        "theta": theta,
-        "alpha": alpha,
-        "lambda": lam,
+        "u_div_s": u_div_s,
+        "s": s,
+        "u": u,
         "effective_beta": effective_beta,
         "psi_check": psi_check,
     }
@@ -134,13 +134,13 @@ def save_dataframe(df, path):
 
 # Wright-Fisher Diffusion
 
-def poisson_lumped_probs(theta, num_classes, device, dtype):
+def poisson_lumped_probs(u_div_s, num_classes, device, dtype):
     k = torch.arange(num_classes - 1, device=device, dtype=dtype)
-    theta_tensor = torch.tensor(theta, device=device, dtype=dtype)
+    u_div_s_tensor = torch.tensor(u_div_s, device=device, dtype=dtype)
 
     log_probs = (
-        -theta_tensor
-        + k * torch.log(theta_tensor)
+        -u_div_s_tensor
+        + k * torch.log(u_div_s_tensor)
         - torch.lgamma(k + 1.0)
     )
 
@@ -154,14 +154,14 @@ def poisson_lumped_probs(theta, num_classes, device, dtype):
 
 
 def build_poisson_mutation_kernel(
-    lam,
+    u,
     num_classes,
     device,
     dtype,
     tail_tol=1e-12,
     max_mutations_cap=250,
 ):
-    probs = [math.exp(-lam)]
+    probs = [math.exp(-u)]
     cumulative = probs[0]
     m = 0
 
@@ -171,7 +171,7 @@ def build_poisson_mutation_kernel(
         and m < num_classes - 1
     ):
         m += 1
-        probs.append(probs[-1] * lam / m)
+        probs.append(probs[-1] * u / m)
         cumulative += probs[-1]
 
     probs_np = np.array(probs, dtype=np.float64)
@@ -269,23 +269,23 @@ def torch_multinomial_counts_batch(N, probs, generator=None, run_chunk=None):
     return counts
 
 
-def build_selection_vector(alpha, num_classes, device, dtype):
+def build_selection_vector(s, num_classes, device, dtype):
     k = torch.arange(num_classes, device=device, dtype=dtype)
 
     if SELECTION_MODE == "exponential":
-        return torch.exp(-alpha * k)
+        return torch.exp(-s * k)
 
-    if SELECTION_MODE == "one_minus_alpha_power":
-        if alpha >= 1.0:
+    if SELECTION_MODE == "one_minus_s_power":
+        if s >= 1.0:
             raise ValueError(
-                f"alpha={alpha} is not valid for selection=(1-alpha)^k. "
-                "Use SELECTION_MODE='exponential' or choose smaller alpha."
+                f"s={s} is not valid for selection=(1-s)^k. "
+                "Use SELECTION_MODE='exponential' or choose smaller s."
             )
 
-        return (1.0 - alpha) ** k
+        return (1.0 - s) ** k
 
     raise ValueError(
-        "SELECTION_MODE must be 'exponential' or 'one_minus_alpha_power'."
+        "SELECTION_MODE must be 'exponential' or 'one_minus_s_power'."
     )
 
 
@@ -297,8 +297,8 @@ def one_wright_fisher_generation(
     selection,
     generator=None,
 ):
-    # Selection first, then mutation (M_lambda after S): the stationary marginal
-    # is Poi(lambda / alpha) for fitness (1 - alpha)^k.
+    # Selection first, then mutation (M_u after S): the stationary marginal
+    # is Poi(u / s) for fitness (1 - s)^k.
     selected = counts * selection
 
     mutated = mutate_counts_poisson_shift(
@@ -338,9 +338,9 @@ def simulate_parameter_set(
         delta=delta,
     )
 
-    theta = params["theta"]
-    alpha = params["alpha"]
-    lam = params["lambda"]
+    u_div_s = params["u_div_s"]
+    s = params["s"]
+    u = params["u"]
     effective_beta = params["effective_beta"]
     psi_check = params["psi_check"]
 
@@ -348,14 +348,14 @@ def simulate_parameter_set(
 
     print(
         f"Running N={N}, psi={psi}, delta={delta}, "
-        f"theta={theta:.8g}, alpha={alpha:.8g}, lambda={lam:.8g}, "
+        f"u_div_s={u_div_s:.8g}, s={s:.8g}, u={u:.8g}, "
         f"effective_beta={effective_beta:.8g}, psi_check={psi_check:.8g}, "
         f"selection_mode={SELECTION_MODE}"
     )
 
     try:
         selection = build_selection_vector(
-            alpha=alpha,
+            s=s,
             num_classes=num_classes,
             device=device,
             dtype=dtype,
@@ -368,14 +368,14 @@ def simulate_parameter_set(
     generator.manual_seed(seed)
 
     init_probs = poisson_lumped_probs(
-        theta=theta,
+        u_div_s=u_div_s,
         num_classes=num_classes,
         device=device,
         dtype=dtype,
     )
 
     poisson_probs, tail_by_source = build_poisson_mutation_kernel(
-        lam=lam,
+        u=u,
         num_classes=num_classes,
         device=device,
         dtype=dtype,
@@ -463,9 +463,9 @@ def simulate_parameter_set(
                         "N": int(N),
                         "psi": float(psi),
                         "delta": float(delta),
-                        "lambda": float(lam),
-                        "theta": float(theta),
-                        "alpha": float(alpha),
+                        "u": float(u),
+                        "u_div_s": float(u_div_s),
+                        "s": float(s),
                         "effective_beta": float(effective_beta),
                         "psi_check": float(psi_check),
                         "selection_mode": SELECTION_MODE,
@@ -500,7 +500,7 @@ def probe_parameter_set(N, psi, delta, probe_runs, t_max, seed, dtype):
     (the fittest class empties) within ``t_max``. Mirrors the inner loop of
     simulate_parameter_set but records nothing and writes no files. Returns a
     dict with:
-        valid     -- False if the parameter set is skipped (e.g. alpha >= 1)
+        valid     -- False if the parameter set is skipped (e.g. s >= 1)
         all_click -- True iff every probe path clicked within t_max
         n_hit     -- number of probe paths that clicked
         t_reached -- generation at which the probe loop stopped
@@ -509,15 +509,15 @@ def probe_parameter_set(N, psi, delta, probe_runs, t_max, seed, dtype):
     device = torch.device("cpu")
 
     params = parameters_from_psi_delta(N=N, psi=psi, delta=delta)
-    theta = params["theta"]
-    alpha = params["alpha"]
-    lam = params["lambda"]
+    u_div_s = params["u_div_s"]
+    s = params["s"]
+    u = params["u"]
 
     num_classes = min(int(N), NUM_CLASSES_CAP)
 
     try:
         selection = build_selection_vector(
-            alpha=alpha,
+            s=s,
             num_classes=num_classes,
             device=device,
             dtype=dtype,
@@ -529,14 +529,14 @@ def probe_parameter_set(N, psi, delta, probe_runs, t_max, seed, dtype):
     generator.manual_seed(seed)
 
     init_probs = poisson_lumped_probs(
-        theta=theta,
+        u_div_s=u_div_s,
         num_classes=num_classes,
         device=device,
         dtype=dtype,
     )
 
     poisson_probs, tail_by_source = build_poisson_mutation_kernel(
-        lam=lam,
+        u=u,
         num_classes=num_classes,
         device=device,
         dtype=dtype,
@@ -607,9 +607,9 @@ def run_all_parameter_sets(
         print(
             {
                 **params,
-                "theta": derived["theta"],
-                "alpha": derived["alpha"],
-                "lambda": derived["lambda"],
+                "u_div_s": derived["u_div_s"],
+                "s": derived["s"],
+                "u": derived["u"],
                 "effective_beta": derived["effective_beta"],
                 "psi_check": derived["psi_check"],
             }

@@ -37,29 +37,29 @@ def fnum(s):
     return v if math.isfinite(v) else None
 
 
-# -------- Neutral-diffusion theory: E_{x0}[tau_0] for dX = -lam X dt + sqrt(X(1-X)) dW.
+# -------- Neutral-diffusion theory: E_{x0}[tau_0] for dX = -u X dt + sqrt(X(1-X)) dW.
 # See theory/neutral.tex for the derivation.
 
-def _S_value(y, two_lam):
-    """Scale function S(y) = int_0^y (1-w)^{-2 lam} dw."""
-    if abs(two_lam - 1.0) < 1e-12:
+def _S_value(y, two_u):
+    """Scale function S(y) = int_0^y (1-w)^{-2 u} dw."""
+    if abs(two_u - 1.0) < 1e-12:
         return -math.log1p(-y)
-    return (1.0 - (1.0 - y) ** (1.0 - two_lam)) / (1.0 - two_lam)
+    return (1.0 - (1.0 - y) ** (1.0 - two_u)) / (1.0 - two_u)
 
 
-def _Sm(y, two_alpha, m_scale):
-    """Integrand S(y) * m(y), with m(y) = m_scale * (1-y)^{two_alpha - 1} / y.
+def _Sm(y, two_s, m_scale):
+    """Integrand S(y) * m(y), with m(y) = m_scale * (1-y)^{two_s - 1} / y.
     Removable limit at y = 0 is m_scale (since S(y) ~ y there)."""
     if y < 1e-15:
         return m_scale
-    return _S_value(y, two_alpha) * m_scale * (1.0 - y) ** (two_alpha - 1.0) / y
+    return _S_value(y, two_s) * m_scale * (1.0 - y) ** (two_s - 1.0) / y
 
 
-def _I2_integrand(t, inv_two_alpha):
-    """Integrand 1/(1 - t^{1/(2 N lam)}) of the substituted second integral."""
+def _I2_integrand(t, inv_two_s):
+    """Integrand 1/(1 - t^{1/(2 N u)}) of the substituted second integral."""
     if t <= 0.0:
         return 1.0
-    return 1.0 / (1.0 - t ** inv_two_alpha)
+    return 1.0 / (1.0 - t ** inv_two_s)
 
 
 def _simpson(f, a, b, n):
@@ -75,17 +75,17 @@ def _simpson(f, a, b, n):
     return s * h / 3.0
 
 
-def t0_neutral_diffusion(lam, x0, N=1, n=4000):
-    """Mean hitting time of 0 for dX = -lam X dt + sqrt(X(1-X)/N) dW, starting at x0.
+def t0_neutral_diffusion(u, x0, N=1, n=4000):
+    """Mean hitting time of 0 for dX = -u X dt + sqrt(X(1-X)/N) dW, starting at x0.
 
     Uses the closed-form (see theory/neutral.tex)
         u(x) = int_0^x S(y) m(y) dy + S(x) * int_x^1 m(y) dy,
-    with S' = (1-x)^{-2 N lam}, m(y) = 2N (1-y)^{2 N lam - 1}/y, and the
-    substitution t = (1-y)^{2 N lam} for the second integral.
+    with S' = (1-x)^{-2 N u}, m(y) = 2N (1-y)^{2 N u - 1}/y, and the
+    substitution t = (1-y)^{2 N u} for the second integral.
     """
-    if lam is None or lam <= 0 or N is None or N <= 0 or not (0.0 < x0 < 1.0):
+    if u is None or u <= 0 or N is None or N <= 0 or not (0.0 < x0 < 1.0):
         return None
-    a = 2.0 * N * lam            # exponent in S and m
+    a = 2.0 * N * u            # exponent in S and m
     m_scale = 2.0 * N            # m(y) = m_scale * (1-y)^{a-1}/y
     I1 = _simpson(lambda y: _Sm(y, a, m_scale), 0.0, x0, n)
     T = (1.0 - x0) ** a
@@ -93,8 +93,8 @@ def t0_neutral_diffusion(lam, x0, N=1, n=4000):
         I2 = 0.0
     else:
         inv_a = 1.0 / a
-        # int_x^1 m dy = (1/lam) * int_0^T dt/(1 - t^{1/a})
-        I2 = _simpson(lambda t: _I2_integrand(t, inv_a), 0.0, T, n) / lam
+        # int_x^1 m dy = (1/u) * int_0^T dt/(1 - t^{1/a})
+        I2 = _simpson(lambda t: _I2_integrand(t, inv_a), 0.0, T, n) / u
     return I1 + _S_value(x0, a) * I2
 
 
@@ -114,9 +114,9 @@ for data_dir in DATA_DIRS:
                         "psi": float(row["psi"]),
                         "delta": float(row["delta"]),
                         "selection_mode": sel_mode,
-                        "alpha": float(row["alpha"]),
-                        "lambda": float(row["lambda"]),
-                        "theta": float(row["theta"]),
+                        "s": float(row["s"]),
+                        "u": float(row["u"]),
+                        "u_div_s": float(row["u_div_s"]),
                         "effective_beta": float(row["effective_beta"]),
                         "n_total": 0,
                         "n_hit": 0,
@@ -147,9 +147,9 @@ for key in sorted(groups):
         "delta": g["delta"],
         "N": g["N"],
         "selection_mode": g["selection_mode"],
-        "alpha": g["alpha"],
-        "lambda": g["lambda"],
-        "theta": g["theta"],
+        "s": g["s"],
+        "u": g["u"],
+        "u_div_s": g["u_div_s"],
         "effective_beta": g["effective_beta"],
         "n_total": g["n_total"],
         "n_hit": g["n_hit"],
@@ -159,9 +159,9 @@ for key in sorted(groups):
         "std_t0": std_t0,
         "mean_inv_t0": mean_inv,
         "std_inv_t0": std_inv,
-        # neutral-diffusion theory baseline: E_{x0=e^-theta}[tau_0]
-        # for dX = -lambda X dt + sqrt(X(1-X)/N) dW
-        "t0_neutral": t0_neutral_diffusion(g["lambda"], math.exp(-g["theta"]), N=g["N"]),
+        # neutral-diffusion theory baseline: E_{x0=e^-u_div_s}[tau_0]
+        # for dX = -u X dt + sqrt(X(1-X)/N) dW
+        "t0_neutral": t0_neutral_diffusion(g["u"], math.exp(-g["u_div_s"]), N=g["N"]),
     })
 
 out = {

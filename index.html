@@ -34,7 +34,7 @@
      Simulated y-values are computed <b>per path, then averaged</b>
      (mean ± SD over paths with finite t<sub>0</sub> &gt; 0; only sets where
      100% of paths clicked are shown). Dashed lines are theory curves (no averaging,
-     drawn over all δ). Hover a point for ψ, δ, α, λ, θ, N·e^(−θ).</p>
+     drawn over all δ). Hover a point for ψ, δ, s, u, u/s, N·e^(−u/s).</p>
 </header>
 
 <div class="wrap">
@@ -70,12 +70,12 @@
     <fieldset>
       <legend>parameter filters (blank = off)</legend>
       <label class="row" style="display:flex; align-items:center; gap:8px">
-        θ &gt;
-        <input type="number" id="thetamin" placeholder="min θ" step="any" style="flex:1 1 auto; padding:6px; font-size:16px; border-radius:6px; border:1px solid #c9c9c9" />
+        u/s &gt;
+        <input type="number" id="thetamin" placeholder="min u/s" step="any" style="flex:1 1 auto; padding:6px; font-size:16px; border-radius:6px; border:1px solid #c9c9c9" />
       </label>
       <label class="row" style="display:flex; align-items:center; gap:8px; margin-top:6px">
-        α &lt;
-        <input type="number" id="alphamax" placeholder="max α" step="any" style="flex:1 1 auto; padding:6px; font-size:16px; border-radius:6px; border:1px solid #c9c9c9" />
+        s &lt;
+        <input type="number" id="alphamax" placeholder="max s" step="any" style="flex:1 1 auto; padding:6px; font-size:16px; border-radius:6px; border:1px solid #c9c9c9" />
       </label>
     </fieldset>
 
@@ -85,9 +85,9 @@
       <label class="row" style="margin-top:8px">theory curve (dashed):</label>
       <select id="theory">
         <option value="off">off</option>
-        <option value="logth_a" selected>t₀ = log θ/α</option>
-        <option value="logth_l">t₀ = log θ/λ</option>
-        <option value="neutral">t₀ = neutral diff., x₀=e^(−θ)</option>
+        <option value="logth_a" selected>t₀ = log(u/s)/s</option>
+        <option value="logth_l">t₀ = log(u/s)/u</option>
+        <option value="neutral">t₀ = neutral diff., x₀=e^(−u/s)</option>
       </select>
     </fieldset>
 
@@ -104,10 +104,10 @@ const MIN_FRAC_HIT = 1.0;  // keep only points where 100% of paths clicked (matc
 // x-axis choices: parameter-space quantities (constant within a (psi,delta) set)
 const X_OPTIONS = {
   "delta":   { label: "δ",        val: p => p.delta,                 log: false },
-  "lambda":  { label: "λ",        val: p => p.lambda,                log: true  },
-  "N_alpha": { label: "N·α",      val: p => p.N * p.alpha,           log: true  },
-  "N_lambda":{ label: "N·λ",      val: p => p.N * p.lambda,          log: true  },
-  "N_emtheta":{label: "N·e^(−θ)", val: p => p.N * Math.exp(-p.theta), log: true },
+  "lambda":  { label: "u",        val: p => p.u,                log: true  },
+  "N_alpha": { label: "N·s",      val: p => p.N * p.s,           log: true  },
+  "N_lambda":{ label: "N·u",      val: p => p.N * p.u,          log: true  },
+  "N_emtheta":{label: "N·e^(−u/s)", val: p => p.N * Math.exp(-p.u_div_s), log: true },
 };
 
 // y-axis choices: transform-then-average; all are scalar multiples of
@@ -116,17 +116,17 @@ const X_OPTIONS = {
 // applies the SAME transform to a deterministic baseline t0 value T.
 const Y_OPTIONS = {
   "t0":   { label: "t₀",   mean: p => p.mean_t0,            err: p => p.std_t0,            theory: (T, p) => T,             log: true },
-  "a_t0": { label: "α·t₀", mean: p => p.alpha * p.mean_t0,  err: p => p.alpha * p.std_t0,  theory: (T, p) => p.alpha * T,   log: true },
-  "a_t0_logth": { label: "α·t₀/log θ", mean: p => p.alpha * p.mean_t0 / Math.log(p.theta), err: p => p.alpha * p.std_t0 / Math.log(p.theta), theory: (T, p) => p.alpha * T / Math.log(p.theta), log: true },
-  "l_t0": { label: "λ·t₀", mean: p => p.lambda * p.mean_t0, err: p => p.lambda * p.std_t0, theory: (T, p) => p.lambda * T,  log: true },
+  "a_t0": { label: "s·t₀", mean: p => p.s * p.mean_t0,  err: p => p.s * p.std_t0,  theory: (T, p) => p.s * T,   log: true },
+  "a_t0_logth": { label: "s·t₀/log(u/s)", mean: p => p.s * p.mean_t0 / Math.log(p.u_div_s), err: p => p.s * p.std_t0 / Math.log(p.u_div_s), theory: (T, p) => p.s * T / Math.log(p.u_div_s), log: true },
+  "l_t0": { label: "u·t₀", mean: p => p.u * p.mean_t0, err: p => p.u * p.std_t0, theory: (T, p) => p.u * T,  log: true },
 };
 
 // baselines for the dashed theory curve (deterministic t0 prediction)
 const THEORY_OPTIONS = {
   "off":     { label: "off" },
-  "logth_a": { label: "log θ/α", base: p => Math.log(p.theta) / p.alpha },
-  "logth_l": { label: "log θ/λ", base: p => Math.log(p.theta) / p.lambda },
-  "neutral": { label: "neutral diffusion (x₀ = e^(−θ))", base: p => p.t0_neutral },
+  "logth_a": { label: "log(u/s)/s", base: p => Math.log(p.u_div_s) / p.s },
+  "logth_l": { label: "log(u/s)/u", base: p => Math.log(p.u_div_s) / p.u },
+  "neutral": { label: "neutral diffusion (x₀ = e^(−u/s))", base: p => p.t0_neutral },
 };
 
 const $ = id => document.getElementById(id);
@@ -195,8 +195,8 @@ function render() {
   const thetaMin = parseFloat($("thetamin").value);
   const alphaMax = parseFloat($("alphamax").value);
   const passFilter = p =>
-    (!Number.isFinite(thetaMin) || p.theta > thetaMin) &&
-    (!Number.isFinite(alphaMax) || p.alpha < alphaMax);
+    (!Number.isFinite(thetaMin) || p.u_div_s > thetaMin) &&
+    (!Number.isFinite(alphaMax) || p.s < alphaMax);
 
   const dataTraces = psis.map(psi => {
     const pts = RATCHET_DATA.points
@@ -215,14 +215,14 @@ function render() {
       marker: { size: 11, color: psiColor[psi] },
       line: { color: psiColor[psi], width: 2.5 },
       customdata: pts.map(d => [
-        d.p.psi, d.p.delta, d.p.alpha, d.p.lambda, d.p.theta, d.e,
-        d.p.N * Math.exp(-d.p.theta),
+        d.p.psi, d.p.delta, d.p.s, d.p.u, d.p.u_div_s, d.e,
+        d.p.N * Math.exp(-d.p.u_div_s),
       ]),
       hovertemplate:
         "ψ=%{customdata[0]:.2f} · δ=%{customdata[1]:.2f}<br>" +
         "<b>y = %{y:.4g} ± %{customdata[5]:.3g}</b><br>" +
-        "α=%{customdata[2]:.3g} · λ=%{customdata[3]:.3g} · θ=%{customdata[4]:.3g}<br>" +
-        "N·e^(−θ)=%{customdata[6]:.4g}" +
+        "s=%{customdata[2]:.3g} · u=%{customdata[3]:.3g} · u/s=%{customdata[4]:.3g}<br>" +
+        "N·e^(−u/s)=%{customdata[6]:.4g}" +
         "<extra></extra>",
     };
   });
@@ -244,10 +244,10 @@ function render() {
       y: tp.map(d => d.y),
       line: { color: psiColor[psi], width: 2, dash: "dash" },
       showlegend: false,
-      customdata: tp.map(d => [d.p.psi, d.p.delta, d.p.N * Math.exp(-d.p.theta)]),
+      customdata: tp.map(d => [d.p.psi, d.p.delta, d.p.N * Math.exp(-d.p.u_div_s)]),
       hovertemplate:
         "theory (" + theoryOpt.label + ") · ψ=%{customdata[0]:.2f} · δ=%{customdata[1]:.2f}<br>" +
-        "y = %{y:.4g}<br>N·e^(−θ)=%{customdata[2]:.4g}<extra></extra>",
+        "y = %{y:.4g}<br>N·e^(−u/s)=%{customdata[2]:.4g}<extra></extra>",
     };
   }) : [];
 

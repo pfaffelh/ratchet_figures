@@ -2,10 +2,10 @@
 """Build a LaTeX table of the simulated values (mirrors index.html quantities).
 
 Same source values as the figure (N fixed, one selection mode), but with NO
-restriction on theta, alpha or psi. Layout:
+restriction on u_div_s, s or psi. Layout:
   - one row per psi
   - one column per beta = 1 - delta
-  - each cell stacks, in order:  N*alpha, N*lambda, theta, t0, t0*alpha/log(theta)
+  - each cell stacks, in order:  N*s, N*u, u_div_s, t0, t0*s/log(u_div_s)
 
 t0 is the per-group mean first-loss time (mean over finite, >0 paths), exactly
 as stored by build_data.py. Reads data.js; writes a standalone .tex document.
@@ -20,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))  # data and the generated tabl
 ROOT = os.path.dirname(HERE)  # repo root; data.js lives here (served by index.html)
 
 N_SEL = 10000
-MODE = "one_minus_alpha_power"
+MODE = "one_minus_s_power"
 MIN_FRAC_HIT = 1.0          # show a cell only if 100% of paths clicked
 OUT = os.path.join(HERE, "table_N10000.tex")
 
@@ -41,22 +41,22 @@ def fmt(v, spec):
 
 # the five quantities, in row order; label is the entry in the label column
 QUANTITIES = [
-    (r"$N\alpha$",                 lambda p: fmt(p["N"] * p["alpha"], ".4g")),
-    (r"$N\lambda$",                lambda p: fmt(p["N"] * p["lambda"], ".4g")),
-    (r"$N\,e^{-\theta}$",          lambda p: fmt(p["N"] * math.exp(-p["theta"]), ".4g")),
+    (r"$Ns$",                 lambda p: fmt(p["N"] * p["s"], ".4g")),
+    (r"$Nu$",                lambda p: fmt(p["N"] * p["u"], ".4g")),
+    (r"$N\,e^{-(u/s)}$",          lambda p: fmt(p["N"] * math.exp(-p["u_div_s"]), ".4g")),
     (r"$t_0$",                     lambda p: fmt(p["mean_t0"], ".4g")),
-    (r"$t_0\,\alpha/\log\theta$",  lambda p: _y_logtheta(p)),
+    (r"$t_0\,s/\log(u/s)$",  lambda p: _y_logu_div_s(p)),
 ]
-PSI_ROW = 2   # 0-based: put psi on the 3rd of the five rows (height of N e^{-theta})
+PSI_ROW = 2   # 0-based: put psi on the 3rd of the five rows (height of N e^{-u_div_s})
 
 
-def _y_logtheta(p):
-    theta = p["theta"]
-    logth = math.log(theta) if theta > 0 else None
+def _y_logu_div_s(p):
+    u_div_s = p["u_div_s"]
+    logth = math.log(u_div_s) if u_div_s > 0 else None
     if logth is not None and logth < 0:
-        return "$<0$"                        # log(theta) < 0: report only "<0"
+        return "$<0$"                        # log(u_div_s) < 0: report only "<0"
     if p["mean_t0"] is not None and logth not in (None, 0):
-        return fmt(p["mean_t0"] * p["alpha"] / logth, ".3f")
+        return fmt(p["mean_t0"] * p["s"] / logth, ".3f")
     return "--"
 
 
@@ -75,7 +75,7 @@ def main():
                         + [f"${d:g}$" for d in deltas]) + r" \\"
 
     # each psi is a block of five real rows (one per quantity); psi sits on the
-    # 3rd row so it aligns exactly with the 3rd entry (N e^{-theta}). Blocks are
+    # 3rd row so it aligns exactly with the 3rd entry (N e^{-u_div_s}). Blocks are
     # separated by a horizontal rule.
     blocks = []
     for psi in psis:
@@ -98,7 +98,7 @@ def main():
 \begin{{table}}[t]
 \centering
 \caption{{Simulated values for population size $N={N_SEL}$, selection mode
-\texttt{{{MODE.replace("_", r"\_")}}} (no restriction on $\theta$, $\alpha$, $\psi$).
+\texttt{{{MODE.replace("_", r"\_")}}} (no restriction on $(u/s)$, $s$, $\psi$).
 Rows: $\psi$ (each a block of five rows, one per quantity named in the label
 column); columns: $\delta$. ``--'' marks parameter sets with fewer than
 {int(MIN_FRAC_HIT*100)}\% clicking paths.}}

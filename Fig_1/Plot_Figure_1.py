@@ -13,15 +13,15 @@ import matplotlib.pyplot as plt
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Input timeseries/metadata live alongside this script in Fig_1/.
 INPUT_DIR = HERE
-OUTPUT_DIR = os.path.join(HERE, "theory_comparison_one_minus_alpha_power_until_2000")
+OUTPUT_DIR = os.path.join(HERE, "theory_comparison_one_minus_s_power_until_2000")
 
-SELECTION_MODE = "one_minus_alpha_power"
+SELECTION_MODE = "one_minus_s_power"
 
 TIME_MAX_PLOT = 2000
 
 DEFAULT_N = 10000
-DEFAULT_LAMBDA = 0.04
-DEFAULT_ALPHA = 0.01
+DEFAULT_U = 0.04
+DEFAULT_S = 0.01
 
 CHUNKSIZE = 1_000_000
 THEORY_SUBSTEPS_PER_GENERATION = 5
@@ -127,24 +127,24 @@ def load_parameters():
         print("No metadata file found. Using fallback values.")
 
         N = DEFAULT_N
-        lam = DEFAULT_LAMBDA
-        alpha = DEFAULT_ALPHA
-        theta = lam / alpha
+        u = DEFAULT_U
+        s = DEFAULT_S
+        u_div_s = u / s
 
         return {
             "N": N,
-            "lambda": lam,
-            "alpha": alpha,
-            "theta": theta,
+            "u": u,
+            "s": s,
+            "u_div_s": u_div_s,
         }
 
     metadata = pd.read_csv(metadata_path).iloc[0]
 
     return {
         "N": int(metadata["N"]),
-        "lambda": float(metadata["lambda"]),
-        "alpha": float(metadata["alpha"]),
-        "theta": float(metadata["theta"]),
+        "u": float(metadata["u"]),
+        "s": float(metadata["s"]),
+        "u_div_s": float(metadata["u_div_s"]),
     }
 
 
@@ -163,11 +163,11 @@ def cumulative_trapezoid(y, x):
     return out
 
 
-def make_cumulative_integral_grid(times, alpha):
+def make_cumulative_integral_grid(times, s):
     times = np.asarray(times, dtype=float)
 
-    u_max = alpha * float(np.max(times))
-    du = alpha / float(THEORY_SUBSTEPS_PER_GENERATION)
+    u_max = s * float(np.max(times))
+    du = s / float(THEORY_SUBSTEPS_PER_GENERATION)
 
     n_grid = int(math.ceil(u_max / du)) + 1
     u = np.linspace(0.0, u_max, n_grid)
@@ -175,59 +175,59 @@ def make_cumulative_integral_grid(times, alpha):
     return u
 
 
-def theory_m1_first_order(times, N, alpha, theta):
+def theory_m1_first_order(times, N, s, u_div_s):
     times = np.asarray(times, dtype=float)
 
-    q = 1.0 - np.exp(-alpha * times)
+    q = 1.0 - np.exp(-s * times)
 
-    return theta + (
-        np.exp(theta * q**2) - 1.0
-    ) / (2.0 * N * alpha)
+    return u_div_s + (
+        np.exp(u_div_s * q**2) - 1.0
+    ) / (2.0 * N * s)
 
 
-def theory_x0(times, N, alpha, theta):
+def theory_x0(times, N, s, u_div_s):
     times = np.asarray(times, dtype=float)
 
-    u = make_cumulative_integral_grid(times, alpha)
+    u = make_cumulative_integral_grid(times, s)
     exp_minus_u = np.exp(-u)
 
     integrand = (
-        np.exp(-theta * exp_minus_u)
+        np.exp(-u_div_s * exp_minus_u)
         * (
             1.0
-            - np.exp(-theta * exp_minus_u * (1.0 - exp_minus_u))
+            - np.exp(-u_div_s * exp_minus_u * (1.0 - exp_minus_u))
         )
     )
 
     cumulative = cumulative_trapezoid(integrand, u)
-    integral_values = np.interp(alpha * times, u, cumulative)
+    integral_values = np.interp(s * times, u, cumulative)
 
-    return math.exp(-theta) - integral_values / (N * alpha)
+    return math.exp(-u_div_s) - integral_values / (N * s)
 
 
-def theory_xk(times, k, N, alpha, theta):
+def theory_xk(times, k, N, s, u_div_s):
     if k == 0:
-        return theory_x0(times, N, alpha, theta)
+        return theory_x0(times, N, s, u_div_s)
 
     times = np.asarray(times, dtype=float)
 
-    u = make_cumulative_integral_grid(times, alpha)
+    u = make_cumulative_integral_grid(times, s)
     exp_minus_u = np.exp(-u)
 
     factorial_k = math.factorial(k)
 
-    poisson_initial = math.exp(-theta) * theta**k / factorial_k
+    poisson_initial = math.exp(-u_div_s) * u_div_s**k / factorial_k
 
     first_term = (
-        np.exp(-theta * exp_minus_u)
-        * np.exp(-theta * exp_minus_u * (1.0 - exp_minus_u))
-        * theta**k
+        np.exp(-u_div_s * exp_minus_u)
+        * np.exp(-u_div_s * exp_minus_u * (1.0 - exp_minus_u))
+        * u_div_s**k
         / factorial_k
     )
 
     second_term = (
-        np.exp(-theta * exp_minus_u)
-        * theta**k
+        np.exp(-u_div_s * exp_minus_u)
+        * u_div_s**k
         * (1.0 - exp_minus_u * (1.0 - exp_minus_u))**k
         / factorial_k
     )
@@ -235,41 +235,41 @@ def theory_xk(times, k, N, alpha, theta):
     integrand = first_term - second_term
 
     cumulative = cumulative_trapezoid(integrand, u)
-    integral_values = np.interp(alpha * times, u, cumulative)
+    integral_values = np.interp(s * times, u, cumulative)
 
-    return poisson_initial + integral_values / (N * alpha)
+    return poisson_initial + integral_values / (N * s)
 
 
-def theory_variance_m1(times, N, alpha, theta):
+def theory_variance_m1(times, N, s, u_div_s):
     times = np.asarray(times, dtype=float)
 
-    u = make_cumulative_integral_grid(times, alpha)
+    u = make_cumulative_integral_grid(times, s)
     exp_minus_u = np.exp(-u)
 
     integrand = (
-        theta
+        u_div_s
         * np.exp(-2.0 * u)
-        * (1.0 + theta * (1.0 - exp_minus_u) ** 2)
-        * np.exp(theta * (1.0 - exp_minus_u) ** 2)
+        * (1.0 + u_div_s * (1.0 - exp_minus_u) ** 2)
+        * np.exp(u_div_s * (1.0 - exp_minus_u) ** 2)
     )
 
     cumulative = cumulative_trapezoid(integrand, u)
-    integral_values = np.interp(alpha * times, u, cumulative)
+    integral_values = np.interp(s * times, u, cumulative)
 
-    return integral_values / (N * alpha)
+    return integral_values / (N * s)
 
 
-def theory_cov_m1_x0(times, N, alpha, theta):
+def theory_cov_m1_x0(times, N, s, u_div_s):
     times = np.asarray(times, dtype=float)
 
-    q = 1.0 - np.exp(-alpha * times)
+    q = 1.0 - np.exp(-s * times)
 
     return (
-        math.exp(-theta)
-        / (2.0 * N * alpha)
+        math.exp(-u_div_s)
+        / (2.0 * N * s)
         * (
-            np.exp(theta * q**2)
-            - 2.0 * np.exp(theta * q)
+            np.exp(u_div_s * q**2)
+            - 2.0 * np.exp(u_div_s * q)
             + 1.0
         )
     )
@@ -279,95 +279,95 @@ def theory_cov_m1_x0(times, N, alpha, theta):
 # Second-order theory for m_1
 # ============================================================
 
-def H_z(z, theta):
-    return np.exp(-theta * (1.0 - np.exp(-z)))
+def H_z(z, u_div_s):
+    return np.exp(-u_div_s * (1.0 - np.exp(-z)))
 
 
-def K_z(z, theta):
-    return theta * np.exp(-z) * H_z(z, theta)
+def K_z(z, u_div_s):
+    return u_div_s * np.exp(-z) * H_z(z, u_div_s)
 
 
-def C_HH_z(r, s, theta):
-    return H_z(r + s, theta) - H_z(r, theta) * H_z(s, theta)
+def C_HH_z(r, s, u_div_s):
+    return H_z(r + s, u_div_s) - H_z(r, u_div_s) * H_z(s, u_div_s)
 
 
-def C_HK_z(r, s, theta):
-    return K_z(r + s, theta) - H_z(r, theta) * K_z(s, theta)
+def C_HK_z(r, s, u_div_s):
+    return K_z(r + s, u_div_s) - H_z(r, u_div_s) * K_z(s, u_div_s)
 
 
-def D_kappa_uv(u, v, theta):
-    # u = alpha * a, v = alpha * b
+def D_kappa_uv(u, v, u_div_s):
+    # u = s * a, v = s * b
 
-    U = H_z(v, theta)
-    V = H_z(u + v, theta)
-    W = H_z(2.0 * u + v, theta)
+    U = H_z(v, u_div_s)
+    V = H_z(u + v, u_div_s)
+    W = H_z(2.0 * u + v, u_div_s)
 
-    P = K_z(u + v, theta)
-    Q = K_z(2.0 * u + v, theta)
+    P = K_z(u + v, u_div_s)
+    Q = K_z(2.0 * u + v, u_div_s)
 
     exp_minus_u = np.exp(-u)
     exp_minus_v = np.exp(-v)
 
-    A = theta * (1.0 - exp_minus_v) * (exp_minus_u - np.exp(-2.0 * u))
+    A = u_div_s * (1.0 - exp_minus_v) * (exp_minus_u - np.exp(-2.0 * u))
 
-    M = np.exp(theta * (1.0 - exp_minus_u) ** 2 * (1.0 - exp_minus_v))
+    M = np.exp(u_div_s * (1.0 - exp_minus_u) ** 2 * (1.0 - exp_minus_v))
 
     term = (
         ((-2.0 * A * V * W - 3.0 * P * W + 2.0 * Q * V) / V**4)
-        * C_HH_z(v, u + v, theta)
+        * C_HH_z(v, u + v, u_div_s)
     )
 
     term += (
         ((A * V + P) / V**3)
-        * C_HH_z(v, 2.0 * u + v, theta)
+        * C_HH_z(v, 2.0 * u + v, u_div_s)
     )
 
     term += (
         (W / V**3)
-        * C_HK_z(v, u + v, theta)
+        * C_HK_z(v, u + v, u_div_s)
     )
 
     term += (
         (-1.0 / V**2)
-        * C_HK_z(v, 2.0 * u + v, theta)
+        * C_HK_z(v, 2.0 * u + v, u_div_s)
     )
 
     term += (
         (3.0 * U * (A * V * W + 2.0 * P * W - Q * V) / V**5)
-        * C_HH_z(u + v, u + v, theta)
+        * C_HH_z(u + v, u + v, u_div_s)
     )
 
     term += (
         (U * (-2.0 * A * V - 3.0 * P) / V**4)
-        * C_HH_z(u + v, 2.0 * u + v, theta)
+        * C_HH_z(u + v, 2.0 * u + v, u_div_s)
     )
 
     term += (
         (-3.0 * U * W / V**4)
-        * C_HK_z(u + v, u + v, theta)
+        * C_HK_z(u + v, u + v, u_div_s)
     )
 
     term += (
         (2.0 * U / V**3)
-        * C_HK_z(u + v, 2.0 * u + v, theta)
+        * C_HK_z(u + v, 2.0 * u + v, u_div_s)
     )
 
     term += (
         (U / V**3)
-        * C_HK_z(2.0 * u + v, u + v, theta)
+        * C_HK_z(2.0 * u + v, u + v, u_div_s)
     )
 
     return M * term
 
 
-def second_order_m1_integral(times, alpha, theta):
+def second_order_m1_integral(times, s, u_div_s):
     times = np.asarray(times, dtype=float)
 
-    u_max = alpha * float(np.max(times))
-    du = alpha * SECOND_ORDER_TIME_STEP
+    u_max = s * float(np.max(times))
+    du = s * SECOND_ORDER_TIME_STEP
 
     if du <= 0:
-        raise ValueError("alpha and SECOND_ORDER_TIME_STEP must be positive.")
+        raise ValueError("s and SECOND_ORDER_TIME_STEP must be positive.")
 
     n_grid = int(math.ceil(u_max / du))
     u_grid = np.arange(n_grid + 1, dtype=float) * du
@@ -383,54 +383,54 @@ def second_order_m1_integral(times, alpha, theta):
         m = n_grid - i + 1
 
         v_values = u_grid[:m]
-        d_values = D_kappa_uv(u, v_values, theta)
+        d_values = D_kappa_uv(u, v_values, u_div_s)
 
         diag_indices = i + np.arange(m)
 
         np.add.at(diag_sums, diag_indices, d_values)
 
     # Rectangular quadrature in u,v.
-    # Since u = alpha*a and v = alpha*b, da db = du dv / alpha^2.
-    triangle_integral_grid = np.cumsum(diag_sums) * du * du / (alpha**2)
+    # Since u = s*a and v = s*b, da db = du dv / s^2.
+    triangle_integral_grid = np.cumsum(diag_sums) * du * du / (s**2)
 
-    target_u = alpha * times
+    target_u = s * times
 
     return np.interp(target_u, u_grid, triangle_integral_grid)
 
 
-def theory_m1_second_order(times, N, alpha, theta):
-    first_order = theory_m1_first_order(times, N, alpha, theta)
+def theory_m1_second_order(times, N, s, u_div_s):
+    first_order = theory_m1_first_order(times, N, s, u_div_s)
     integral_second_order = second_order_m1_integral(
         times=times,
-        alpha=alpha,
-        theta=theta,
+        s=s,
+        u_div_s=u_div_s,
     )
 
     return first_order + integral_second_order / (N**2)
 
 
-def build_theory_dataframe(times, N, alpha, theta):
+def build_theory_dataframe(times, N, s, u_div_s):
     return pd.DataFrame(
         {
             "time": times,
             "theory_kappa_1_mean_first_order": theory_m1_first_order(
                 times,
                 N,
-                alpha,
-                theta,
+                s,
+                u_div_s,
             ),
             "theory_kappa_1_mean_second_order": theory_m1_second_order(
                 times,
                 N,
-                alpha,
-                theta,
+                s,
+                u_div_s,
             ),
-            "theory_X_0_mean": theory_xk(times, 0, N, alpha, theta),
-            "theory_X_1_mean": theory_xk(times, 1, N, alpha, theta),
-            "theory_X_2_mean": theory_xk(times, 2, N, alpha, theta),
-            "theory_X_3_mean": theory_xk(times, 3, N, alpha, theta),
-            "theory_kappa_1_var": theory_variance_m1(times, N, alpha, theta),
-            "theory_cov_kappa_1_X_0": theory_cov_m1_x0(times, N, alpha, theta),
+            "theory_X_0_mean": theory_xk(times, 0, N, s, u_div_s),
+            "theory_X_1_mean": theory_xk(times, 1, N, s, u_div_s),
+            "theory_X_2_mean": theory_xk(times, 2, N, s, u_div_s),
+            "theory_X_3_mean": theory_xk(times, 3, N, s, u_div_s),
+            "theory_kappa_1_var": theory_variance_m1(times, N, s, u_div_s),
+            "theory_cov_kappa_1_X_0": theory_cov_m1_x0(times, N, s, u_div_s),
         }
     )
 
@@ -956,13 +956,13 @@ def main():
     params = load_parameters()
 
     N = params["N"]
-    lam = params["lambda"]
-    alpha = params["alpha"]
-    theta = params["theta"]
+    u = params["u"]
+    s = params["s"]
+    u_div_s = params["u_div_s"]
 
     print("\n" + "=" * 80)
     print(f"Selection mode: {SELECTION_MODE}")
-    print(f"N={N}, lambda={lam}, alpha={alpha}, theta={theta}")
+    print(f"N={N}, u={u}, s={s}, u_div_s={u_div_s}")
     print(f"Using only time <= {TIME_MAX_PLOT}")
     print("=" * 80)
 
@@ -989,8 +989,8 @@ def main():
     theory = build_theory_dataframe(
         times=times,
         N=N,
-        alpha=alpha,
-        theta=theta,
+        s=s,
+        u_div_s=u_div_s,
     )
 
     comparison = means.merge(theory, on="time", how="left")
@@ -1056,9 +1056,9 @@ def main():
     error_summary = {
         "selection_mode": SELECTION_MODE,
         "N": N,
-        "lambda": lam,
-        "alpha": alpha,
-        "theta": theta,
+        "u": u,
+        "s": s,
+        "u_div_s": u_div_s,
         "time_max_plot": TIME_MAX_PLOT,
         "n_first_losses_until_time_max": first_loss_summary["n_hits_until_time_max"],
         "mean_first_loss_time": first_loss_summary["mean_first_loss_time"],

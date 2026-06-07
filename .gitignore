@@ -13,5 +13,8 @@ __pycache__/
 Fig_2_Table_1/run.pid
 Fig_2_Table_1/run.log
 
-# Per-run Fig_1 timeseries: ~0.5 GB, regenerable via scripts/Simulation_discrete_time_Fig_1.py
+# Per-run Fig_1 timeseries: ~0.5 GB, regenerable via Fig_1/Simulation_discrete_time_Fig_1.py
 Fig_1/timeseries_by_run_*.csv
+
+# generated Fig_1 comparison output (regenerable, old-order)
+Fig_1/theory_comparison_*/

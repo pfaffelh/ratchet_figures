@@ -14,15 +14,15 @@ T = 10000
 RUNS = 1000
 BATCH_SIZE = 100
 
-LAM = 0.04
-ALPHA = 0.01
-THETA = LAM / ALPHA
+U = 0.04
+S = 0.01
+U_DIV_S = U / S
 
 NUM_CLASSES = N
 
 SELECTION_MODES = [
     "exponential",
-    "one_minus_alpha_power",
+    "one_minus_s_power",
 ]
 
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -79,13 +79,13 @@ def remove_if_exists(path):
 # Wright-Fisher helpers
 # ============================================================
 
-def poisson_lumped_probs(theta, num_classes, device, dtype):
+def poisson_lumped_probs(u_div_s, num_classes, device, dtype):
     k = torch.arange(num_classes - 1, device=device, dtype=dtype)
-    theta_tensor = torch.tensor(theta, device=device, dtype=dtype)
+    u_div_s_tensor = torch.tensor(u_div_s, device=device, dtype=dtype)
 
     log_probs = (
-        -theta_tensor
-        + k * torch.log(theta_tensor)
+        -u_div_s_tensor
+        + k * torch.log(u_div_s_tensor)
         - torch.lgamma(k + 1.0)
     )
 
@@ -99,14 +99,14 @@ def poisson_lumped_probs(theta, num_classes, device, dtype):
 
 
 def build_poisson_mutation_kernel(
-    lam,
+    u,
     num_classes,
     device,
     dtype,
     tail_tol=1e-12,
     max_mutations_cap=250,
 ):
-    probs = [math.exp(-lam)]
+    probs = [math.exp(-u)]
     cumulative = probs[0]
     m = 0
 
@@ -116,7 +116,7 @@ def build_poisson_mutation_kernel(
         and m < num_classes - 1
     ):
         m += 1
-        probs.append(probs[-1] * lam / m)
+        probs.append(probs[-1] * u / m)
         cumulative += probs[-1]
 
     probs_np = np.array(probs, dtype=np.float64)
@@ -197,22 +197,22 @@ def torch_multinomial_counts_batch(N, probs, generator=None):
     return counts
 
 
-def build_selection_vector(alpha, num_classes, selection_mode, device, dtype):
+def build_selection_vector(s, num_classes, selection_mode, device, dtype):
     k = torch.arange(num_classes, device=device, dtype=dtype)
 
     if selection_mode == "exponential":
-        return torch.exp(-alpha * k)
+        return torch.exp(-s * k)
 
-    if selection_mode == "one_minus_alpha_power":
-        if not (0.0 < alpha < 1.0):
+    if selection_mode == "one_minus_s_power":
+        if not (0.0 < s < 1.0):
             raise ValueError(
-                "For selection_mode='one_minus_alpha_power', alpha must satisfy 0 < alpha < 1."
+                "For selection_mode='one_minus_s_power', s must satisfy 0 < s < 1."
             )
 
-        return (1.0 - alpha) ** k
+        return (1.0 - s) ** k
 
     raise ValueError(
-        "selection_mode must be 'exponential' or 'one_minus_alpha_power'."
+        "selection_mode must be 'exponential' or 'one_minus_s_power'."
     )
 
 
@@ -224,8 +224,8 @@ def one_wright_fisher_generation(
     selection,
     generator=None,
 ):
-    # Selection first, then mutation (M_lambda after S): the stationary marginal
-    # is Poi(lambda / alpha) for fitness (1 - alpha)^k.
+    # Selection first, then mutation (M_u after S): the stationary marginal
+    # is Poi(u / s) for fitness (1 - s)^k.
     selected = counts * selection
 
     mutated = mutate_counts_poisson_shift(
@@ -288,9 +288,9 @@ def save_metadata(path, selection_mode):
                 "T": T,
                 "runs": RUNS,
                 "batch_size": BATCH_SIZE,
-                "lambda": LAM,
-                "alpha": ALPHA,
-                "theta": THETA,
+                "u": U,
+                "s": S,
+                "u_div_s": U_DIV_S,
                 "num_classes": NUM_CLASSES,
                 "selection_mode": selection_mode,
                 "seed": SEED,
@@ -314,8 +314,8 @@ def simulate_selection_mode(selection_mode, device, seed):
     output_prefix = (
         f"N_{N}"
         f"_T_{T}"
-        f"_lambda_{float_tag(LAM)}"
-        f"_alpha_{float_tag(ALPHA)}"
+        f"_u_{float_tag(U)}"
+        f"_s_{float_tag(S)}"
         f"_runs_{RUNS}"
         f"_selection_{selection_mode}"
     )
@@ -345,14 +345,14 @@ def simulate_selection_mode(selection_mode, device, seed):
     generator.manual_seed(seed)
 
     init_probs = poisson_lumped_probs(
-        theta=THETA,
+        u_div_s=U_DIV_S,
         num_classes=NUM_CLASSES,
         device=device,
         dtype=TORCH_DTYPE,
     )
 
     poisson_probs, tail_by_source = build_poisson_mutation_kernel(
-        lam=LAM,
+        u=U,
         num_classes=NUM_CLASSES,
         device=device,
         dtype=TORCH_DTYPE,
@@ -361,7 +361,7 @@ def simulate_selection_mode(selection_mode, device, seed):
     )
 
     selection = build_selection_vector(
-        alpha=ALPHA,
+        s=S,
         num_classes=NUM_CLASSES,
         selection_mode=selection_mode,
         device=device,
