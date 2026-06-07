@@ -457,6 +457,10 @@ def aggregate_by_run_file(path, times):
 
     first_loss_by_run = {}
 
+    # collect (time, kappa_1) over all runs to get per-time percentiles of m_1
+    t_chunks = []
+    kappa_chunks = []
+
     usecols = ["run_index", "time", "X_0", "kappa_1"]
 
     for chunk in pd.read_csv(path, usecols=usecols, chunksize=CHUNKSIZE):
@@ -468,6 +472,9 @@ def aggregate_by_run_file(path, times):
         t = chunk["time"].to_numpy(dtype=np.int64)
         x0 = chunk["X_0"].to_numpy(dtype=np.float64)
         kappa = chunk["kappa_1"].to_numpy(dtype=np.float64)
+
+        t_chunks.append(t)
+        kappa_chunks.append(kappa)
 
         count += np.bincount(t, minlength=size)
         sum_kappa += np.bincount(t, weights=kappa, minlength=size)
@@ -537,6 +544,22 @@ def aggregate_by_run_file(path, times):
 
     aggregate = aggregate[aggregate["time"].isin(times)].copy()
 
+    # Per-time percentiles of m_1 across runs (for the spread band of the m1 plots).
+    if t_chunks:
+        qdf = pd.DataFrame({
+            "time": np.concatenate(t_chunks),
+            "kappa": np.concatenate(kappa_chunks),
+        })
+        qt = (
+            qdf.groupby("time")["kappa"]
+            .quantile([0.10, 0.25, 0.50, 0.75, 0.90])
+            .unstack()
+        )
+        qt.columns = [
+            "kappa_1_q10", "kappa_1_q25", "kappa_1_q50", "kappa_1_q75", "kappa_1_q90"
+        ]
+        aggregate = aggregate.merge(qt.reset_index(), on="time", how="left")
+
     first_loss_df = pd.DataFrame(
         {
             "run_index": list(first_loss_by_run.keys()),
@@ -600,6 +623,26 @@ def add_first_loss_lines(ax, first_loss_summary):
             linewidth=3,
             label=rf"median first loss = {median_t:.1f}",
         )
+
+
+def add_m1_spread_band(ax, comparison):
+    """Shade the 10-90% inter-path range of m_1 and draw its median.
+
+    Conveys the spread of m_1 across paths (unlike +/- 2 SE, which is only the
+    uncertainty of the mean). Needs the per-time percentiles from the by-run
+    file; silently does nothing if they are unavailable."""
+    if "kappa_1_q10" not in comparison.columns or not comparison["kappa_1_q10"].notna().any():
+        return
+
+    ax.fill_between(
+        comparison["time"],
+        comparison["kappa_1_q10"],
+        comparison["kappa_1_q90"],
+        color="#9e9e9e",
+        alpha=0.30,
+        linewidth=0,
+        label="simulation 10–90%",
+    )
 
 
 def plot_first_loss_violin(first_loss_df, first_loss_summary):
@@ -675,30 +718,10 @@ def plot_m1_first_order(comparison, first_loss_summary, first_loss_df):
         comparison["kappa_1_mean"],
         color=COLOR_M1_SIM,
         linewidth=3,
-        label="simulation",
+        label="simulation mean",
     )
 
-    ax.plot(
-        comparison["time"],
-        comparison["theory_kappa_1_mean_first_order"],
-        color=COLOR_M1_THEORY_1,
-        linewidth=3,
-        linestyle="--",
-        label=r"theory up to $1/\nu$",
-    )
-
-    if "kappa_1_se" in comparison.columns:
-        lower = comparison["kappa_1_mean"] - 2.0 * comparison["kappa_1_se"]
-        upper = comparison["kappa_1_mean"] + 2.0 * comparison["kappa_1_se"]
-
-        ax.fill_between(
-            comparison["time"],
-            lower,
-            upper,
-            color=COLOR_M1_THEORY_1,
-            alpha=0.25,
-            label=r"simulation $\pm 2$ SE",
-        )
+    add_m1_spread_band(ax, comparison)
 
     add_first_loss_lines(ax, first_loss_summary)
 
@@ -721,11 +744,22 @@ def plot_m1_first_order(comparison, first_loss_summary, first_loss_df):
                 label=f"first losses (n={t0s.size})",
             )
 
+    # Theory drawn last (high zorder) so it stays on top of the band/curves.
+    ax.plot(
+        comparison["time"],
+        comparison["theory_kappa_1_mean_first_order"],
+        color=COLOR_M1_THEORY_1,
+        linewidth=3,
+        linestyle="--",
+        label=r"theory up to $1/\nu$",
+        zorder=10,
+    )
+
     ax.set_xlabel(r"$t$")
     ax.set_ylabel(r"$\mathbb{E}(m_1(X^N_t))$")
 
     ax.grid(True, alpha=0.3)
-    ax.legend()
+    ax.legend(loc="upper center", ncol=2)
 
     fig.tight_layout()
 
@@ -748,9 +782,14 @@ def plot_m1_second_order(comparison, first_loss_summary):
         comparison["kappa_1_mean"],
         color=COLOR_M1_SIM,
         linewidth=3,
-        label="simulation",
+        label="simulation mean",
     )
 
+    add_m1_spread_band(ax, comparison)
+
+    add_first_loss_lines(ax, first_loss_summary)
+
+    # Theory drawn last (high zorder) so it stays on top of the band/curves.
     ax.plot(
         comparison["time"],
         comparison["theory_kappa_1_mean_first_order"],
@@ -758,6 +797,7 @@ def plot_m1_second_order(comparison, first_loss_summary):
         linewidth=3,
         linestyle="--",
         label=r"theory up to $1/\nu$",
+        zorder=10,
     )
 
     ax.plot(
@@ -767,28 +807,14 @@ def plot_m1_second_order(comparison, first_loss_summary):
         linewidth=3,
         linestyle="-.",
         label=r"theory up to $1/\nu^2$",
+        zorder=11,
     )
-
-    if "kappa_1_se" in comparison.columns:
-        lower = comparison["kappa_1_mean"] - 2.0 * comparison["kappa_1_se"]
-        upper = comparison["kappa_1_mean"] + 2.0 * comparison["kappa_1_se"]
-
-        ax.fill_between(
-            comparison["time"],
-            lower,
-            upper,
-            color=COLOR_M1_THEORY_1,
-            alpha=0.22,
-            label=r"simulation $\pm 2$ SE",
-        )
-
-    add_first_loss_lines(ax, first_loss_summary)
 
     ax.set_xlabel(r"$t$")
     ax.set_ylabel(r"$\mathbb{E}(m_1(X^N_t))$")
 
     ax.grid(True, alpha=0.3)
-    ax.legend()
+    ax.legend(loc="upper center", ncol=2)
 
     fig.tight_layout()
 
