@@ -684,7 +684,7 @@ def plot_m1_first_order(comparison, first_loss_summary, first_loss_df):
         color=COLOR_M1_THEORY_1,
         linewidth=3,
         linestyle="--",
-        label=r"theory up to $1/N$",
+        label=r"theory up to $1/\nu$",
     )
 
     if "kappa_1_se" in comparison.columns:
@@ -757,7 +757,7 @@ def plot_m1_second_order(comparison, first_loss_summary):
         color=COLOR_M1_THEORY_1,
         linewidth=3,
         linestyle="--",
-        label=r"theory up to $1/N$",
+        label=r"theory up to $1/\nu$",
     )
 
     ax.plot(
@@ -766,7 +766,7 @@ def plot_m1_second_order(comparison, first_loss_summary):
         color=COLOR_M1_THEORY_2,
         linewidth=3,
         linestyle="-.",
-        label=r"theory up to $1/N^2$",
+        label=r"theory up to $1/\nu^2$",
     )
 
     if "kappa_1_se" in comparison.columns:
@@ -864,7 +864,7 @@ def plot_variance_comparison(comparison):
         color=COLOR_VAR_THEORY,
         linewidth=3,
         linestyle="--",
-        label=r"theory up to $1/N$",
+        label=r"theory up to $1/\nu$",
     )
 
     ax.set_xlabel(r"$t$")
@@ -907,7 +907,7 @@ def plot_covariance_comparison(comparison):
         color=COLOR_COV_THEORY,
         linewidth=3,
         linestyle="--",
-        label=r"theory up to $1/N$",
+        label=r"theory up to $1/\nu$",
     )
 
     ax.set_xlabel(r"$t$")
