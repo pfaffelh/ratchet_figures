@@ -667,7 +667,7 @@ def plot_first_loss_violin(first_loss_df, first_loss_summary):
     print(f"Saved: {output_path}")
 
 
-def plot_m1_first_order(comparison, first_loss_summary):
+def plot_m1_first_order(comparison, first_loss_summary, first_loss_df):
     fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.plot(
@@ -702,8 +702,27 @@ def plot_m1_first_order(comparison, first_loss_summary):
 
     add_first_loss_lines(ax, first_loss_summary)
 
-    ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$\mathbb{E}(m_1(X^N_\tau))$")
+    # Rug of the individual first-loss (click) times along the bottom axis:
+    # one tick per path, so one sees *when* each path actually clicked.
+    if first_loss_df is not None and not first_loss_df.empty:
+        t0s = first_loss_df["first_loss_time"].to_numpy(dtype=float)
+        t0s = t0s[t0s <= TIME_MAX_PLOT]
+        if t0s.size:
+            ax.plot(
+                t0s,
+                np.full_like(t0s, 0.02),
+                marker="|",
+                linestyle="none",
+                markersize=14,
+                markeredgewidth=1.2,
+                color=COLOR_M1_SIM,
+                alpha=0.35,
+                transform=ax.get_xaxis_transform(),  # x in data, y in axes fraction
+                label=f"first losses (n={t0s.size})",
+            )
+
+    ax.set_xlabel(r"$t$")
+    ax.set_ylabel(r"$\mathbb{E}(m_1(X^N_t))$")
 
     ax.grid(True, alpha=0.3)
     ax.legend()
@@ -765,8 +784,8 @@ def plot_m1_second_order(comparison, first_loss_summary):
 
     add_first_loss_lines(ax, first_loss_summary)
 
-    ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$\mathbb{E}(m_1(X^N_\tau))$")
+    ax.set_xlabel(r"$t$")
+    ax.set_ylabel(r"$\mathbb{E}(m_1(X^N_t))$")
 
     ax.grid(True, alpha=0.3)
     ax.legend()
@@ -805,8 +824,8 @@ def plot_x0_to_x3_together(comparison):
             label=rf"theory $X^N_{k}$",
         )
 
-    ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$\mathbb{E}(X^N_k(\tau))$")
+    ax.set_xlabel(r"$t$")
+    ax.set_ylabel(r"$\mathbb{E}(X^N_k(t))$")
 
     ax.grid(True, alpha=0.3)
     ax.legend(ncol=2, fontsize=17)
@@ -845,11 +864,11 @@ def plot_variance_comparison(comparison):
         color=COLOR_VAR_THEORY,
         linewidth=3,
         linestyle="--",
-        label="theory",
+        label=r"theory up to $1/N$",
     )
 
-    ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$\mathbb{V}(m_1(X^N_\tau))$")
+    ax.set_xlabel(r"$t$")
+    ax.set_ylabel(r"$\mathbb{V}(m_1(X^N_t))$")
 
     ax.grid(True, alpha=0.3)
     ax.legend()
@@ -888,11 +907,11 @@ def plot_covariance_comparison(comparison):
         color=COLOR_COV_THEORY,
         linewidth=3,
         linestyle="--",
-        label="theory",
+        label=r"theory up to $1/N$",
     )
 
-    ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$\operatorname{Cov}(m_1(X^N_\tau),X^N_0(\tau))$")
+    ax.set_xlabel(r"$t$")
+    ax.set_ylabel(r"$\operatorname{Cov}(m_1(X^N_t),X^N_0(t))$")
 
     ax.grid(True, alpha=0.3)
     ax.legend()
@@ -1047,7 +1066,7 @@ def main():
     print(f"Saved: {comparison_path}")
 
     plot_first_loss_violin(first_loss_df, first_loss_summary)
-    plot_m1_first_order(comparison, first_loss_summary)
+    plot_m1_first_order(comparison, first_loss_summary, first_loss_df)
     plot_m1_second_order(comparison, first_loss_summary)
     plot_x0_to_x3_together(comparison)
     plot_variance_comparison(comparison)
