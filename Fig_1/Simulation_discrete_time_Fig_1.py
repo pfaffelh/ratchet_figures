@@ -224,14 +224,17 @@ def one_wright_fisher_generation(
     selection,
     generator=None,
 ):
+    # Selection first, then mutation (M_lambda after S): the stationary marginal
+    # is Poi(lambda / alpha) for fitness (1 - alpha)^k.
+    selected = counts * selection
+
     mutated = mutate_counts_poisson_shift(
-        counts=counts,
+        counts=selected,
         poisson_probs=poisson_probs,
         tail_by_source=tail_by_source,
     )
 
-    probs = mutated * selection
-    probs = probs / probs.sum(dim=1, keepdim=True)
+    probs = mutated / mutated.sum(dim=1, keepdim=True)
 
     new_counts = torch_multinomial_counts_batch(
         N=N,
