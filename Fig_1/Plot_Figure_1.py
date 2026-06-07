@@ -703,7 +703,7 @@ def plot_m1_first_order(comparison, first_loss_summary):
     add_first_loss_lines(ax, first_loss_summary)
 
     ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$\mathbb{E}(m_1(X_\tau))$")
+    ax.set_ylabel(r"$\mathbb{E}(m_1(X^N_\tau))$")
 
     ax.grid(True, alpha=0.3)
     ax.legend()
@@ -766,7 +766,7 @@ def plot_m1_second_order(comparison, first_loss_summary):
     add_first_loss_lines(ax, first_loss_summary)
 
     ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$\mathbb{E}(m_1(X_\tau))$")
+    ax.set_ylabel(r"$\mathbb{E}(m_1(X^N_\tau))$")
 
     ax.grid(True, alpha=0.3)
     ax.legend()
@@ -793,7 +793,7 @@ def plot_x0_to_x3_together(comparison):
             comparison[f"X_{k}_mean"],
             color=X_COLORS[k]["sim"],
             linewidth=3,
-            label=rf"simulation $X_{k}$",
+            label=rf"simulation $X^N_{k}$",
         )
 
         ax.plot(
@@ -802,11 +802,11 @@ def plot_x0_to_x3_together(comparison):
             color=X_COLORS[k]["theory"],
             linewidth=3,
             linestyle="--",
-            label=rf"theory $X_{k}$",
+            label=rf"theory $X^N_{k}$",
         )
 
     ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$\mathbb{E}(X_k(\tau))$")
+    ax.set_ylabel(r"$\mathbb{E}(X^N_k(\tau))$")
 
     ax.grid(True, alpha=0.3)
     ax.legend(ncol=2, fontsize=17)
@@ -849,7 +849,7 @@ def plot_variance_comparison(comparison):
     )
 
     ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$\mathbb{V}(m_1(X_\tau))$")
+    ax.set_ylabel(r"$\mathbb{V}(m_1(X^N_\tau))$")
 
     ax.grid(True, alpha=0.3)
     ax.legend()
@@ -892,7 +892,7 @@ def plot_covariance_comparison(comparison):
     )
 
     ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$\operatorname{Cov}(m_1(X_\tau),X_0(\tau))$")
+    ax.set_ylabel(r"$\operatorname{Cov}(m_1(X^N_\tau),X^N_0(\tau))$")
 
     ax.grid(True, alpha=0.3)
     ax.legend()

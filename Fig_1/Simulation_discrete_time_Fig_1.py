@@ -21,7 +21,6 @@ U_DIV_S = U / S
 NUM_CLASSES = N
 
 SELECTION_MODES = [
-    "exponential",
     "one_minus_s_power",
 ]
 
@@ -307,10 +306,6 @@ def save_metadata(path, selection_mode):
 # ============================================================
 
 def simulate_selection_mode(selection_mode, device, seed):
-    print("\n" + "=" * 80)
-    print(f"Running selection mode: {selection_mode}")
-    print("=" * 80)
-
     output_prefix = (
         f"N_{N}"
         f"_T_{T}"
