@@ -10,7 +10,8 @@
 #   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu124
 #
 # Plain `pip install -r requirements.txt` installs the default PyPI wheel, which
-# is sufficient for the plotting scripts (Plots/) but may be CPU-only.
+# is sufficient for the plotting scripts (Fig_1/, Fig_2_Table_1/) but may be
+# CPU-only.
 
 numpy==1.26.4
 pandas==2.1.4

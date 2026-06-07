@@ -98,8 +98,8 @@ def main():
     psis = sorted({g["psi"] for g in sel})
 
     plt.rcParams.update({
-        "font.size": 15, "axes.labelsize": 20,
-        "xtick.labelsize": 14, "ytick.labelsize": 14, "legend.fontsize": 15,
+        "font.size": 15, "axes.labelsize": 26,
+        "xtick.labelsize": 22, "ytick.labelsize": 22, "legend.fontsize": 19,
     })
     fig, ax = plt.subplots(figsize=(6.4 * 1.3 * 1.3, 5.0 * 1.3))
 
