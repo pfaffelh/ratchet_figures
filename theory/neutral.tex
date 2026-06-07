@@ -4,58 +4,58 @@
 \begin{document}
 
 \section*{Mean hitting time of $0$ for the diffusion
-$\mathrm{d}X = -\lambda X\,\mathrm{d}t + \sqrt{X(1-X)/N}\,\mathrm{d}W$}
+$\mathrm{d}X = -{u} X\,\mathrm{d}t + \sqrt{X(1-X)/N}\,\mathrm{d}W$}
 
 Let $X = (X_t)_{t \ge 0}$ on $[0,1]$ solve
 \[
-  \mathrm{d}X_t \;=\; -\lambda\,X_t\,\mathrm{d}t
+  \mathrm{d}X_t \;=\; -{u}\,X_t\,\mathrm{d}t
               \;+\; \sqrt{X_t(1-X_t)/N}\,\mathrm{d}W_t,
   \qquad X_0 = x \in (0,1),
 \]
-with $\lambda > 0$ and $N>0$ (the population-size parameter). Let
-$\tau_0 := \inf\{t \ge 0 : X_t = 0\}$ and $u(x) := \mathbb{E}_x[\tau_0]$.
+with ${u} > 0$ and $N>0$ (the population-size parameter). Let
+$\tau_0 := \inf\{t \ge 0 : X_t = 0\}$ and $h(x) := \mathbb{E}_x[\tau_0]$.
 
-\paragraph{ODE.} With $\sigma^2(x)=x(1-x)/N$ and drift $b(x)=-\lambda x$, the
-generator is $\mathcal{L} = \tfrac{1}{2N}\, x(1-x)\,\partial_x^2 - \lambda x\,\partial_x$,
+\paragraph{ODE.} With $\sigma^2(x)=x(1-x)/N$ and drift $b(x)=-{u} x$, the
+generator is $\mathcal{L} = \tfrac{1}{2N}\, x(1-x)\,\partial_x^2 - {u} x\,\partial_x$,
 hence
 \begin{equation}\label{eq:ode}
-  \tfrac{1}{2N}\, x(1-x)\, u''(x) \;-\; \lambda x\, u'(x) \;=\; -1,
-  \qquad u(0)=0.
+  \tfrac{1}{2N}\, x(1-x)\, h''(x) \;-\; {u} x\, h'(x) \;=\; -1,
+  \qquad h(0)=0.
 \end{equation}
 The right endpoint $x=1$ is non-exit (drift inward, diffusion vanishing); for
-$2N\lambda<1$ it is regular and we impose the reflecting condition $u'(1)=0$,
-for $2N\lambda\ge 1$ it is entrance and only $u(1^-)<\infty$ is required.
+$2N{u}<1$ it is regular and we impose the reflecting condition $h'(1)=0$,
+for $2N{u}\ge 1$ it is entrance and only $h(1^-)<\infty$ is required.
 
 \paragraph{Scale and speed.} Since
-$2b/\sigma^2 = -2N\lambda/(1-x)$,
+$2b/\sigma^2 = -2N{u}/(1-x)$,
 \[
-  S'(x) \;=\; (1-x)^{-2N\lambda},
+  S'(x) \;=\; (1-x)^{-2N{u}},
   \qquad
   m(y) \;=\; \frac{2}{\sigma^2(y)\,S'(y)}
-         \;=\; \frac{2N\,(1-y)^{2N\lambda-1}}{y},
+         \;=\; \frac{2N\,(1-y)^{2N{u}-1}}{y},
 \]
 and
 \[
-  S(x) \;=\; \int_0^x (1-w)^{-2N\lambda}\,\mathrm{d}w \;=\;
+  S(x) \;=\; \int_0^x (1-w)^{-2N{u}}\,\mathrm{d}w \;=\;
   \begin{cases}
-    \dfrac{\,1 - (1-x)^{1-2N\lambda}\,}{1-2N\lambda}, & 2N\lambda \neq 1, \\[1.2ex]
-    -\ln(1-x), & 2N\lambda = 1.
+    \dfrac{\,1 - (1-x)^{1-2N{u}}\,}{1-2N{u}}, & 2N{u} \neq 1, \\[1.2ex]
+    -\ln(1-x), & 2N{u} = 1.
   \end{cases}
 \]
 
-\paragraph{Solving \eqref{eq:ode}.} With $g := u'$,
+\paragraph{Solving \eqref{eq:ode}.} With $g := h'$,
 \[
-  g'(x) \;-\; \frac{2N\lambda}{1-x}\,g(x) \;=\; -\,\frac{2N}{x(1-x)}.
+  g'(x) \;-\; \frac{2N{u}}{1-x}\,g(x) \;=\; -\,\frac{2N}{x(1-x)}.
 \]
-Multiplying by the integrating factor $(1-x)^{2N\lambda}$ and using that
+Multiplying by the integrating factor $(1-x)^{2N{u}}$ and using that
 $g(1^-)$ is finite,
 \[
-  (1-x)^{2N\lambda}\,g(x)
-  \;=\; 2N\int_x^1 \frac{(1-y)^{2N\lambda-1}}{y}\,\mathrm{d}y,
+  (1-x)^{2N{u}}\,g(x)
+  \;=\; 2N\int_x^1 \frac{(1-y)^{2N{u}-1}}{y}\,\mathrm{d}y,
   \qquad
-  u'(x) \;=\; 2N\,(1-x)^{-2N\lambda}\!\int_x^1 \frac{(1-y)^{2N\lambda-1}}{y}\,\mathrm{d}y.
+  h'(x) \;=\; 2N\,(1-x)^{-2N{u}}\!\int_x^1 \frac{(1-y)^{2N{u}-1}}{y}\,\mathrm{d}y.
 \]
-Integrating from $0$ to $x$ (using $u(0)=0$) and applying Fubini,
+Integrating from $0$ to $x$ (using $h(0)=0$) and applying Fubini,
 \begin{equation}\label{eq:result}
   \boxed{\;
     \mathbb{E}_x[\tau_0]
@@ -68,20 +68,20 @@ Integrating from $0$ to $x$ (using $u(0)=0$) and applying Fubini,
 
 \paragraph{Regularity / numerics.}
 As $y\to 0^+$: $S(y)\sim y$, $m(y)\sim 2N/y$, so $S(y)\,m(y)\to 2N$
-(removable). The substitution $t=(1-y)^{2N\lambda}$ gives the bounded form
+(removable). The substitution $t=(1-y)^{2N{u}}$ gives the bounded form
 \begin{equation}\label{eq:I2sub}
   \int_x^1 m(y)\,\mathrm{d}y
   \;=\;
-  \frac{1}{\lambda}\int_0^{(1-x)^{2N\lambda}}\!\!\frac{\mathrm{d}t}{1 - t^{1/(2N\lambda)}},
+  \frac{1}{{u}}\int_0^{(1-x)^{2N{u}}}\!\!\frac{\mathrm{d}t}{1 - t^{1/(2N{u})}},
 \end{equation}
 with integrand $1$ at $t=0$ and $1/x$ at the upper limit. Hence adaptive
-Simpson on $[0,(1-x)^{2N\lambda}]$ converges fast.
+Simpson on $[0,(1-x)^{2N{u}}]$ converges fast.
 
 \paragraph{Time rescaling.}
 Equivalently, $X_t = Y_{t/N}$ where
-$\mathrm{d}Y = -(N\lambda) Y\,\mathrm{d}t + \sqrt{Y(1-Y)}\,\mathrm{d}W$;
-thus $u(x) = N \cdot u_{\mathrm{base}}(x;\,\widetilde\lambda = N\lambda)$,
-with $u_{\mathrm{base}}$ the hitting time for the unit-$N$ SDE.
+$\mathrm{d}Y = -(N{u}) Y\,\mathrm{d}t + \sqrt{Y(1-Y)}\,\mathrm{d}W$;
+thus $h(x) = N \cdot h_{\mathrm{base}}(x;\,\widetilde{u} = N{u})$,
+with $h_{\mathrm{base}}$ the hitting time for the unit-$N$ SDE.
 
 \paragraph{Initial condition used in the visualization.} For the Muller's
 ratchet figures we take
@@ -89,8 +89,8 @@ ratchet figures we take
   X_0 \;=\; e^{-\theta} \;=\; N^{-\delta},
   \qquad \theta = \delta \ln N,
 \]
-so $u(e^{-\theta})$ depends on $(\psi, \delta, N)$ via
-$\lambda = \psi\,\theta\,N^{-\beta}$, $\beta = 1-\delta$.
+so $h(e^{-\theta})$ depends on $(\psi, \delta, N)$ via
+${u} = \psi\,\theta\,N^{-\beta}$, $\beta = 1-\delta$.
 We evaluate \eqref{eq:result} numerically per parameter set using
 \eqref{eq:I2sub} and adaptive Simpson quadrature.
 
