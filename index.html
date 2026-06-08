@@ -30,11 +30,21 @@
 <body>
 <header>
   <h1>Muller's ratchet — first-loss time t<sub>0</sub></h1>
-  <p>Each marker is one (ψ, δ) parameter set for the chosen N.
+  <p>Each marker is one (ψ, δ) parameter set for the chosen N. Here
+     <b>ψ = N·s·e<sup>−u/s</sup></b> is the key quantity for the ratchet's speed
+     (clicks are frequent on a timescale of ψ generations when ψ ≪ 1, rare when
+     ψ ≫ 1), and <b>δ fixes the ratio u/s in units of log N</b>: u/s = δ·log(N)
+     (so larger δ means a larger u/s).
      Simulated y-values are computed <b>per path, then averaged</b>
      (mean ± SD over paths with finite t<sub>0</sub> &gt; 0; only sets where
      100% of paths clicked are shown). Dashed lines are theory curves (no averaging,
      drawn over all δ). Hover a point for ψ, δ, s, u, u/s, N·e^(−u/s).</p>
+  <p style="margin-top:6px">The two update orders <b>start from different initial
+     conditions</b>: each path begins at the stationary marginal of its order —
+     Poisson(u/s) for <i>selection → mutation</i>, but Poisson((u/s)·(1−s)) for
+     <i>mutation → selection</i> (the fittest class is, on average, slightly fuller
+     when mutation acts first), so the two curves are not just a reordering of the
+     same run.</p>
 </header>
 
 <div class="wrap">
@@ -334,8 +344,8 @@ fillSelect($("ysel"), Y_OPTIONS);
 
 // update-order selector populated from data
 const ORDER_LABELS = {
-  "selection_first": "Selektion → Mutation",
-  "mutation_first":  "Mutation → Selektion",
+  "selection_first": "selection → mutation",
+  "mutation_first":  "mutation → selection",
 };
 const orderSel = $("ordersel");
 (RATCHET_DATA.update_orders || ["selection_first"]).forEach(o => {
