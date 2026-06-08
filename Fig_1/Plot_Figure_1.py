@@ -759,7 +759,14 @@ def plot_m1_first_order(comparison, first_loss_summary, first_loss_df):
     ax.set_ylabel(r"$\mathbb{E}(m_1(X^N_t))$")
 
     ax.grid(True, alpha=0.3)
-    ax.legend(loc="upper center", ncol=2)
+    ax.legend(
+        loc="upper center",
+        ncol=2,
+        fontsize=16,
+        columnspacing=1.2,
+        handlelength=1.8,
+        handletextpad=0.5,
+    )
 
     fig.tight_layout()
 
@@ -814,7 +821,14 @@ def plot_m1_second_order(comparison, first_loss_summary):
     ax.set_ylabel(r"$\mathbb{E}(m_1(X^N_t))$")
 
     ax.grid(True, alpha=0.3)
-    ax.legend(loc="upper center", ncol=2)
+    ax.legend(
+        loc="upper center",
+        ncol=2,
+        fontsize=16,
+        columnspacing=1.2,
+        handlelength=1.8,
+        handletextpad=0.5,
+    )
 
     fig.tight_layout()
 
