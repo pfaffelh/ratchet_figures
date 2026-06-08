@@ -37,6 +37,13 @@ PROBE_RUNS = 8
 # probe skipped (non-clicking) write no CSV, so they are re-probed on restart.
 SKIP_EXISTING = True
 
+# Within-generation update order.
+#   False (default): selection then mutation; stationary marginal Poi(u/s),
+#       started at Poi(u/s). Keeps the current behaviour and summary file names.
+#   True : mutation then selection; stationary marginal Poi(u(1-s)/s), started
+#       at that equilibrium. Summary files get a "_mutation_first" tag.
+MUTATION_FIRST = False
+
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 REQUIRE_CUDA = True
@@ -119,11 +126,13 @@ def float_tag(x):
 
 
 def summary_filename(N, psi, delta):
+    tag = "_mutation_first" if MUTATION_FIRST else "_selection_first"
     return (
         f"summary"
         f"_N_{int(N)}"
         f"_psi_{float_tag(psi)}"
-        f"_delta_{float_tag(delta)}.csv"
+        f"_delta_{float_tag(delta)}"
+        f"{tag}.csv"
     )
 
 
@@ -297,17 +306,27 @@ def one_wright_fisher_generation(
     selection,
     generator=None,
 ):
-    # Selection first, then mutation (M_u after S): the stationary marginal
-    # is Poi(u / s) for fitness (1 - s)^k.
-    selected = counts * selection
+    if MUTATION_FIRST:
+        # Mutation first, then selection (S after M_u): stationary marginal
+        # Poi(u (1 - s) / s) for fitness (1 - s)^k.
+        mutated = mutate_counts_poisson_shift(
+            counts=counts,
+            poisson_probs=poisson_probs,
+            tail_by_source=tail_by_source,
+        )
+        probs = mutated * selection
+    else:
+        # Selection first, then mutation (M_u after S): stationary marginal
+        # Poi(u / s) for fitness (1 - s)^k.
+        selected = counts * selection
+        mutated = mutate_counts_poisson_shift(
+            counts=selected,
+            poisson_probs=poisson_probs,
+            tail_by_source=tail_by_source,
+        )
+        probs = mutated
 
-    mutated = mutate_counts_poisson_shift(
-        counts=selected,
-        poisson_probs=poisson_probs,
-        tail_by_source=tail_by_source,
-    )
-
-    probs = mutated / mutated.sum(dim=1, keepdim=True)
+    probs = probs / probs.sum(dim=1, keepdim=True)
 
     new_counts = torch_multinomial_counts_batch(
         N=N,
@@ -367,8 +386,11 @@ def simulate_parameter_set(
     generator = torch.Generator(device=device)
     generator.manual_seed(seed)
 
+    # Start each path at the stationary marginal of the chosen update order:
+    # Poi(u/s) for selection->mutation, Poi(u(1-s)/s) for mutation->selection.
+    init_u_div_s = u_div_s * (1.0 - s) if MUTATION_FIRST else u_div_s
     init_probs = poisson_lumped_probs(
-        u_div_s=u_div_s,
+        u_div_s=init_u_div_s,
         num_classes=num_classes,
         device=device,
         dtype=dtype,
@@ -469,6 +491,7 @@ def simulate_parameter_set(
                         "effective_beta": float(effective_beta),
                         "psi_check": float(psi_check),
                         "selection_mode": SELECTION_MODE,
+                        "update_order": "mutation_first" if MUTATION_FIRST else "selection_first",
                         "path_index": global_path_indices,
                         "hit_x0_zero": hit_cpu,
                         "t_0": t0_float,
@@ -528,8 +551,11 @@ def probe_parameter_set(N, psi, delta, probe_runs, t_max, seed, dtype):
     generator = torch.Generator(device=device)
     generator.manual_seed(seed)
 
+    # Start each path at the stationary marginal of the chosen update order:
+    # Poi(u/s) for selection->mutation, Poi(u(1-s)/s) for mutation->selection.
+    init_u_div_s = u_div_s * (1.0 - s) if MUTATION_FIRST else u_div_s
     init_probs = poisson_lumped_probs(
-        u_div_s=u_div_s,
+        u_div_s=init_u_div_s,
         num_classes=num_classes,
         device=device,
         dtype=dtype,

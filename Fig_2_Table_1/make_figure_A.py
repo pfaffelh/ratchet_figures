@@ -61,6 +61,9 @@ def load_groups():
         for path in sorted(glob.glob(os.path.join(d, "summary_N_*_psi_*.csv"))):
             with open(path, newline="") as fh:
                 for row in csv.DictReader(fh):
+                    # Fig 2 uses only the selection-first runs (default order).
+                    if (row.get("update_order") or "selection_first").strip() != "selection_first":
+                        continue
                     mode = row["selection_mode"].strip()
                     key = (int(float(row["N"])), float(row["psi"]),
                            float(row["delta"]), mode)

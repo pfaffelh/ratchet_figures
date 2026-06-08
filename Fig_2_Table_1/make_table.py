@@ -64,6 +64,7 @@ def main():
     data = load_data()
     pts = [p for p in data["points"]
            if p["N"] == N_SEL and p["selection_mode"] == MODE
+           and p.get("update_order", "selection_first") == "selection_first"
            and p["n_used"] > 0 and p["frac_hit"] >= MIN_FRAC_HIT]
 
     psis = sorted({p["psi"] for p in pts})

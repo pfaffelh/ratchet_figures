@@ -106,7 +106,9 @@ for data_dir in DATA_DIRS:
         with open(path, newline="") as fh:
             for row in csv.DictReader(fh):
                 sel_mode = row["selection_mode"].strip()
-                key = (int(float(row["N"])), float(row["psi"]), float(row["delta"]), sel_mode)
+                # update_order is absent in older (selection-first) runs.
+                order = (row.get("update_order") or "selection_first").strip()
+                key = (int(float(row["N"])), float(row["psi"]), float(row["delta"]), sel_mode, order)
                 g = groups.get(key)
                 if g is None:
                     g = groups[key] = {
@@ -114,6 +116,7 @@ for data_dir in DATA_DIRS:
                         "psi": float(row["psi"]),
                         "delta": float(row["delta"]),
                         "selection_mode": sel_mode,
+                        "update_order": order,
                         "s": float(row["s"]),
                         "u": float(row["u"]),
                         "u_div_s": float(row["u_div_s"]),
@@ -147,6 +150,7 @@ for key in sorted(groups):
         "delta": g["delta"],
         "N": g["N"],
         "selection_mode": g["selection_mode"],
+        "update_order": g["update_order"],
         "s": g["s"],
         "u": g["u"],
         "u_div_s": g["u_div_s"],
@@ -168,6 +172,7 @@ out = {
     "N_values": sorted({p["N"] for p in points}),
     "psi_values": sorted({p["psi"] for p in points}),
     "selection_modes": sorted({p["selection_mode"] for p in points}),
+    "update_orders": sorted({p["update_order"] for p in points}),
     "points": points,
 }
 with open(OUT, "w") as fh:

@@ -58,8 +58,8 @@
     </fieldset>
 
     <fieldset>
-      <legend>N (population size)</legend>
-      <select id="nsel"></select>
+      <legend>update order</legend>
+      <select id="ordersel"></select>
     </fieldset>
 
     <fieldset>
@@ -142,11 +142,15 @@ const psiColor = {};
 RATCHET_DATA.psi_values.forEach((psi, i) => { psiColor[psi] = PALETTE[i % PALETTE.length]; });
 
 function selectedN() {
-  return parseInt($("nsel").value, 10);
+  return RATCHET_DATA.N_values[0];   // single N in the data
 }
 
 function selectedMode() {
   return RATCHET_DATA.selection_modes[0];
+}
+
+function selectedOrder() {
+  return $("ordersel").value;
 }
 
 // Persistent ψ selection (so toggling N / selection-mode does not reset the
@@ -158,9 +162,10 @@ function buildPsiBoxes() {
   box.innerHTML = "";
   const N = selectedN();
   const mode = selectedMode();
+  const order = selectedOrder();
   const psis = [...new Set(
     RATCHET_DATA.points
-      .filter(p => p.N === N && p.selection_mode === mode)
+      .filter(p => p.N === N && p.selection_mode === mode && p.update_order === order)
       .map(p => p.psi)
   )].sort((a, b) => a - b);
   psis.forEach(psi => {
@@ -190,6 +195,7 @@ function render() {
   const psis = selectedPsi();
   const N = selectedN();
   const mode = selectedMode();
+  const order = selectedOrder();
 
   // parameter filters (blank = off): keep only theta > thetaMin and alpha < alphaMax
   const thetaMin = parseFloat($("thetamin").value);
@@ -200,7 +206,7 @@ function render() {
 
   const dataTraces = psis.map(psi => {
     const pts = RATCHET_DATA.points
-      .filter(p => p.N === N && p.selection_mode === mode && p.psi === psi
+      .filter(p => p.N === N && p.selection_mode === mode && p.update_order === order && p.psi === psi
                 && p.n_used > 0 && p.frac_hit >= MIN_FRAC_HIT && passFilter(p))
       .map(p => ({ x: X.val(p), y: Y.mean(p), e: Y.err(p), p }))
       .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y))
@@ -230,7 +236,7 @@ function render() {
   const theoryOpt = THEORY_OPTIONS[$("theory").value];
   const theoryTraces = (theoryOpt && theoryOpt.base) ? psis.map(psi => {
     const tp = RATCHET_DATA.points
-      .filter(p => p.N === N && p.selection_mode === mode && p.psi === psi && passFilter(p))
+      .filter(p => p.N === N && p.selection_mode === mode && p.update_order === order && p.psi === psi && passFilter(p))
       .map(p => ({ p, x: X.val(p), T: theoryOpt.base(p) }))
       .filter(d => Number.isFinite(d.T))
       .map(d => ({ x: d.x, y: Y.theory(d.T, d.p), p: d.p }))
@@ -326,12 +332,16 @@ function render() {
 fillSelect($("xsel"), X_OPTIONS);
 fillSelect($("ysel"), Y_OPTIONS);
 
-// N selector populated from data
-const nSel = $("nsel");
-RATCHET_DATA.N_values.forEach(N => {
+// update-order selector populated from data
+const ORDER_LABELS = {
+  "selection_first": "Selektion → Mutation",
+  "mutation_first":  "Mutation → Selektion",
+};
+const orderSel = $("ordersel");
+(RATCHET_DATA.update_orders || ["selection_first"]).forEach(o => {
   const opt = document.createElement("option");
-  opt.value = N; opt.textContent = "N = " + N.toLocaleString("de-DE");
-  nSel.appendChild(opt);
+  opt.value = o; opt.textContent = ORDER_LABELS[o] || o;
+  orderSel.appendChild(opt);
 });
 
 buildPsiBoxes(); // depends on selected N and mode; (re-)attaches its listeners
@@ -343,7 +353,7 @@ syncXLog(); syncYLog();
 
 $("xsel").addEventListener("change", () => { syncXLog(); render(); });
 $("ysel").addEventListener("change", () => { syncYLog(); render(); });
-nSel.addEventListener("change", () => { buildPsiBoxes(); render(); });
+orderSel.addEventListener("change", () => { buildPsiBoxes(); render(); });
 ["xlog", "ylog", "errbars", "theory"].forEach(id => $(id).addEventListener("change", render));
 ["xmin", "xmax", "thetamin", "alphamax"].forEach(id => $(id).addEventListener("input", render));
 
