@@ -42,7 +42,7 @@ SKIP_EXISTING = True
 #       started at Poi(u/s). Keeps the current behaviour and summary file names.
 #   True : mutation then selection; stationary marginal Poi(u(1-s)/s), started
 #       at that equilibrium. Summary files get a "_mutation_first" tag.
-MUTATION_FIRST = False
+MUTATION_FIRST = True
 
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
