@@ -18,3 +18,5 @@ Fig_1/timeseries_by_run_*.csv
 
 # generated Fig_1 comparison output (regenerable, old-order)
 Fig_1/theory_comparison_*/
+
+venv/
