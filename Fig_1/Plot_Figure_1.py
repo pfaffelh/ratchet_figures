@@ -612,7 +612,7 @@ def add_first_loss_lines(ax, first_loss_summary):
             color="#636363",
             linestyle=":",
             linewidth=3,
-            label=rf"mean first loss = {mean_t:.1f}",
+            label=rf"mean first click = {mean_t:.1f}",
         )
 
     if not np.isnan(median_t):
@@ -621,7 +621,7 @@ def add_first_loss_lines(ax, first_loss_summary):
             color="#252525",
             linestyle="-.",
             linewidth=3,
-            label=rf"median first loss = {median_t:.1f}",
+            label=rf"median first click = {median_t:.1f}",
         )
 
 
@@ -691,8 +691,8 @@ def plot_first_loss_violin(first_loss_df, first_loss_summary):
     ax.axhline(q75, color="#969696", linestyle="--", linewidth=2.2, label=rf"75% = {q75:.1f}")
 
     ax.set_xticks([1])
-    ax.set_xticklabels([r"first loss"])
-    ax.set_ylabel(r"first loss time")
+    ax.set_xticklabels([r"first click"])
+    ax.set_ylabel(r"first click time")
 
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=17)
@@ -741,7 +741,7 @@ def plot_m1_first_order(comparison, first_loss_summary, first_loss_df):
                 color=COLOR_M1_SIM,
                 alpha=0.35,
                 transform=ax.get_xaxis_transform(),  # x in data, y in axes fraction
-                label=f"first losses (n={t0s.size})",
+                label=f"first clicks (n={t0s.size})",
             )
 
     # Theory drawn last (high zorder) so it stays on top of the band/curves.

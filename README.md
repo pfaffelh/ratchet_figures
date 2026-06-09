@@ -35,7 +35,7 @@ This repository contains
 Each figure/table lives in its own self-contained folder (simulation + plotting code + data + generated output):
 
 `Fig_1/`: `Simulation_discrete_time_Fig_1.py` simulates the full per-generation timeseries of $m_1, X_0(t), \dots$; `Plot_Figure_1.py` compares the simulated $m_1$ and $X_k$ against the analytic theory up to $\mathcal O(1/N^2)$ and writes its plots here. <br>
-`Fig_2_Table_1/`: `Simulation_discrete_time_Fig_2.py` simulates the discrete-time ratchet on a GPU (if available) and records the first-loss time $t_0$ per path; `make_figure_A.py`, `make_figure_B.py` and `make_table.py` build Figure 2 and Table 1 (written here), and `build_data.py` writes `data.js` for the interactive web view. <br>
+`Fig_2_Table_1/`: `Simulation_discrete_time_Fig_2.py` simulates the discrete-time ratchet on a GPU (if available) and records the first-click time $t_0$ per path; `make_figure_A.py`, `make_figure_B.py` and `make_table.py` build Figure 2 and Table 1 (written here), and `build_data.py` writes `data.js` for the interactive web view. <br>
 `theory/`: LaTeX notes (`neutral.tex`, `wf_equilibria.tex`). <br>
 
 The generated figures (`figure_*.pdf/png`) and the table (`table_N10000.*`) are written into `Fig_2_Table_1/`; `Plot_Figure_1.py` writes its plots into `Fig_1/`. Only `data.js` is written to the repository root, where `index.html` renders it as the interactive plot. <br>
@@ -64,7 +64,7 @@ python Fig_1/Simulation_discrete_time_Fig_1.py   # simulate -> Fig_1/timeseries_
 python Fig_1/Plot_Figure_1.py                    # plots -> Fig_1/theory_comparison_*/
 ```
 
-**Figure 2 and Table 1** (clicking rate / first-loss time $t_0$ over the $(\psi,\delta)$ grid):
+**Figure 2 and Table 1** (clicking rate / first-click time $t_0$ over the $(\psi,\delta)$ grid):
 
 ```bash
 python Fig_2_Table_1/Simulation_discrete_time_Fig_2.py   # simulate -> Fig_2_Table_1/summary_*.csv

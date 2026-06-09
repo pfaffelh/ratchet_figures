@@ -8,7 +8,7 @@ mean +/- SD error bars). Those per-path samples are not in data.js (which only
 stores mean/std), so we read the raw summary_*.csv files directly and apply the
 same grouping/filtering as build_data.py + index.html.
 
-This is the second figure: only psi in {2, 5, 10} and a LOGARITHMIC y-axis.
+This is the second figure: only psi in {1.3, 2, 5, 10} and a LOGARITHMIC y-axis.
 
 x: N*s (log)   y: s*t_0/log(u_div_s) (log)
 
@@ -29,10 +29,10 @@ DATA_DIRS = [
     HERE,
 ]
 
-# ----- selection (second figure: only psi 2/5/10, log y-axis) ----------------
+# ----- selection (second figure: only psi 1.3/2/5/10, log y-axis) ------------
 N_SEL = 10000
 MODE = "one_minus_s_power"
-PSI_SET = {2.0, 5.0, 10.0}   # show only these psi
+PSI_SET = {1.3, 2.0, 5.0, 10.0}   # show only these psi
 U_DIV_S_MIN = 1.0         # u_div_s > U_DIV_S_MIN
 S_MAX = 0.2         # s < S_MAX
 MIN_FRAC_HIT = 1.0      # keep only points where 100% of paths clicked
